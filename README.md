@@ -104,3 +104,66 @@ TitleSimilarityClustering/
 2. 注意大规模数据处理时的性能问题
 3. 保持代码的可维护性和可扩展性
 4. 详细记录实验结果和优化过程
+
+## 使用说明
+
+### 环境配置
+
+1. Python 环境要求：
+   ```bash
+   Python 3.8+
+   ```
+
+2. 创建并激活虚拟环境：
+   ```bash
+   # 创建虚拟环境
+   python -m venv venv
+
+   # Windows 激活虚拟环境
+   .\venv\Scripts\activate
+
+   # Linux/Mac 激活虚拟环境
+   source venv/bin/activate
+   ```
+
+3. 安装依赖：
+   ```bash
+   pip install requests beautifulsoup4 pandas numpy scikit-learn matplotlib python-Levenshtein gensim tqdm
+   ```
+
+### 数据获取
+
+运行爬虫获取论文数据：
+
+1. 爬取指定时间范围的数据：
+   ```bash
+   python run_crawler.py
+   ```
+   爬取的时间长度在 run_crawler.py 中配置
+
+爬虫运行说明：
+- 数据将保存在 `data/raw/` 目录下，文件名格式为 `thesis_titles_{year}.csv`
+- 每个年份的数据单独保存为一个 CSV 文件
+- 数据包含以下字段：
+  - id: 论文唯一标识符
+  - title: 论文标题（已清洗）
+  - publish_date: 发表日期（格式：YYYY-MM-DD）
+  - author: 第一作者
+  - major: 专业分类（固定为"信息科技"）
+
+注意事项：
+1. 默认爬取信息科技领域的论文
+2. 数据格式要求：
+   - 编码：UTF-8
+   - 分隔符：逗号 (,)
+   - 包含表头
+   - 所有字段都不允许为空
+   - 标题必须是规范的中文或英文，不包含特殊字符
+3. 如遇到访问限制，可以：
+   - 适当增加爬取间隔
+   - 更换网络环境
+   - 更新请求头信息
+
+### 数据预处理
+
+// ... (后续步骤待实现)
