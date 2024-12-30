@@ -166,4 +166,40 @@ TitleSimilarityClustering/
 
 ### 数据预处理
 
-// ... (后续步骤待实现)
+1. 运行预处理脚本：
+   ```bash
+   python run_preprocessor.py
+   ```
+   
+预处理步骤说明：
+1. 分词处理
+   - 使用 jieba 进行中文分词
+   - 输出文件：`data/processed/tokenized_titles_{year}.csv`
+   - 包含字段：
+     - id: 论文唯一标识符
+     - title: 原始论文标题
+     - tokens: 分词结果（空格分隔）
+     - year: 论文年份
+
+2. 停用词处理
+   - 使用预定义的停用词表过滤无意义词语
+   - 停用词表位置：`src/preprocessing/stopwords.txt`
+   - 停用词来源：https://github.com/CharyHong/Stopwords/blob/main/stopwords_full.txt
+
+3. 清洗结果
+   - 输出文件：`data/processed/cleaned_titles_{year}.csv`
+   - 包含字段：
+     - id: 论文唯一标识符
+     - title: 原始论文标题
+     - cleaned_tokens: 去停用词后的分词结果（空格分隔）
+     - year: 论文年份
+
+注意事项：
+1. 确保已安装必要的依赖：
+   ```bash
+   pip install jieba
+   ```
+2. 所有输出文件采用 UTF-8 编码
+3. CSV 文件包含表头，使用逗号分隔
+4. 分词结果中的词语使用单个空格分隔
+5. 所有字段都不允许为空

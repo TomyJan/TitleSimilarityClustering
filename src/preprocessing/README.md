@@ -23,6 +23,7 @@
 - 每行一个停用词
 - UTF-8 编码
 - 不包含空行和重复词
+- 停用词来源 https://github.com/CharyHong/Stopwords/blob/main/stopwords_full.txt
 
 ### 3. 清洗后的分词结果
 文件名：`cleaned_titles_{year}.csv`
