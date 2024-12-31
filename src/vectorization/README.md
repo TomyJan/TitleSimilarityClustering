@@ -8,39 +8,25 @@
 
 向量化后的数据将保存在 `data/processed` 目录下。
 
-### 1. TF-IDF 向量
+### 1. TF-IDF向量
 文件名：`tfidf_vectors_{year}.npz`
-- 使用 scipy.sparse.save_npz 保存的稀疏矩阵
-- 每行对应一个标题的 TF-IDF 向量
-- 保存对应的特征词典：`tfidf_vocabulary.json`
+- 使用scipy.sparse.save_npz保存稀疏矩阵
+- 每行对应一个标题的TF-IDF向量
+- 同时保存特征词列表：`tfidf_features.json`
 
-### 2. Word2Vec 向量
+### 2. Word2Vec向量
 文件名：`word2vec_vectors_{year}.npy`
-- 使用 numpy.save 保存的密集矩阵
-- 每行对应一个标题的词向量（取所有词向量的平均值）
-- 保存训练好的模型：`word2vec_model.bin`
+- 使用numpy.save保存密集矩阵
+- 每行对应一个标题的Word2Vec向量(通过对词向量取平均得到)
+- 同时保存词向量模型：`word2vec_model.bin`
 
-### 3. 向量元数据
-文件名：`vector_metadata_{year}.json`
-
-```json
-{
-    "tfidf": {
-        "shape": [n_samples, n_features],
-        "vocabulary_size": int,
-        "sparse": true
-    },
-    "word2vec": {
-        "shape": [n_samples, vector_dim],
-        "vocabulary_size": int,
-        "vector_dim": int,
-        "sparse": false
-    }
-}
-```
+### 3. 字符级编码向量
+文件名：`char_vectors_{year}.npz`
+- 使用scipy.sparse.save_npz保存稀疏矩阵
+- 每行对应一个标题的字符级one-hot编码
+- 同时保存字符映射表：`char_features.json`
 
 ### 数据要求
-- 所有数值向量必须是标准化的（L2范数归一化）
-- 向量维度在不同年份的数据之间必须保持一致
-- 特征词典在所有年份间共享
-- 必须包含元数据文件，描述向量的基本信息
+- 所有向量必须是二维数组，形状为 (n_samples, n_features)
+- 向量化过程中的配置参数(如n_features)需要保存在对应的config文件中
+- 对于每种向量化方法，需要保证所有年份的数据使用相同的特征空间
