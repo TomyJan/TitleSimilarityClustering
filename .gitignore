@@ -22,4 +22,20 @@ logs/*
 !logs/.gitkeep
 
 # Virtual Environment
-venv/
+venv/*
+!venv/Scripts/
+!venv/bin/
+venv/Scripts/*
+!venv/Scripts/activate*
+!venv/Scripts/deactivate*
+venv/bin/*
+!venv/bin/activate*
+!venv/bin/deactivate*
+venv/Lib/
+venv/lib64/
+venv/lib/
+venv/include/
+venv/Include/
+venv/pyvenv.cfg
+venv/.gitignore
+venv/pip-selfcheck.json
