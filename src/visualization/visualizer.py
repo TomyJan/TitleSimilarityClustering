@@ -8,6 +8,7 @@ import logging
 from sklearn.decomposition import PCA
 from scipy import sparse
 import matplotlib as mpl
+import time
 
 # 配置中文字体
 plt.rcParams['font.sans-serif'] = ['MiSans', 'SimHei', 'Microsoft YaHei', 'SimSun', 'NSimSun', 'FangSong', 'KaiTi', 'Arial Unicode MS']  # 用来正常显示中文标签
@@ -211,6 +212,88 @@ class Visualizer:
             logger.warning(f'无法分析{year}年{method}方法的研究趋势: {e}')
             return []
 
+    def _load_similarity_matrix(self, year: int, method: str) -> np.ndarray:
+        """加载相似度矩阵。
+
+        Args:
+            year: 年份
+            method: 使用的方法
+
+        Returns:
+            np.ndarray: 相似度矩阵
+        """
+        try:
+            matrix_path = os.path.join('data', 'similarity', f'similarity_{method}_{year}.npy')
+            return np.load(matrix_path)
+        except Exception as e:
+            logger.error(f'加载{year}年{method}方法的相似度矩阵时出错: {e}')
+            return np.array([])
+
+    def plot_similarity_comparison(self, year: int) -> bool:
+        """绘制不同方法的相似度分布对比图。
+
+        Args:
+            year: 年份
+
+        Returns:
+            bool: 是否成功生成对比图
+        """
+        try:
+            methods = ['tfidf', 'word2vec', 'edit_distance']
+            method_names = {'tfidf': 'TF-IDF', 'word2vec': 'Word2Vec', 'edit_distance': '编辑距离'}
+            plt.figure(figsize=(12, 6))
+
+            for method in methods:
+                matrix = self._load_similarity_matrix(year, method)
+                if matrix.size > 0:
+                    # 获取上三角矩阵的值（不包括对角线）
+                    similarities = matrix[np.triu_indices_from(matrix, k=1)]
+                    sns.kdeplot(similarities, label=method_names[method])
+
+            plt.title(f'{year}年不同相似度算法的分布对比')
+            plt.xlabel('相似度值')
+            plt.ylabel('密度')
+            plt.legend()
+            
+            output_path = os.path.join(self.output_dir, f'similarity_comparison_{year}.png')
+            plt.savefig(output_path)
+            plt.close()
+            
+            logger.info(f'已生成相似度对比图: {output_path}')
+            return True
+        except Exception as e:
+            logger.error(f'生成相似度对比图时出错: {e}')
+            return False
+
+    def _analyze_algorithm_performance(self, year: int) -> Dict:
+        """分析不同算法的性能。
+
+        Args:
+            year: 年份
+
+        Returns:
+            Dict: 包含性能分析结果的字典
+        """
+        try:
+            methods = ['tfidf', 'word2vec', 'edit_distance']
+            performance = {}
+            
+            for method in methods:
+                start_time = time.time()
+                matrix = self._load_similarity_matrix(year, method)
+                if matrix.size > 0:
+                    # 计算性能指标
+                    performance[method] = {
+                        'time': time.time() - start_time,
+                        'memory': matrix.nbytes / (1024 * 1024),  # MB
+                        'sparsity': 1.0 - (np.count_nonzero(matrix) / matrix.size)
+                    }
+            
+            return performance
+        except Exception as e:
+            logger.error(f'分析算法性能时出错: {e}')
+            return {}
+
     def generate_analysis_report(self, years: List[int], output_dir: str) -> bool:
         """生成分析报告。
 
@@ -225,28 +308,65 @@ class Visualizer:
             report_content = []
             report_content.append("# 论文标题相似度分析报告\n")
 
-            methods = ['tfidf', 'word2vec']
+            methods = ['tfidf', 'word2vec', 'edit_distance']
+            method_names = {'tfidf': 'TF-IDF', 'word2vec': 'Word2Vec', 'edit_distance': '编辑距离'}
+            
+            # 添加算法比较部分
+            report_content.append("\n## 算法比较分析\n")
+            report_content.append("\n### 算法特点比较\n")
+            report_content.append("\n#### TF-IDF 算法\n")
+            report_content.append("- 优点：")
+            report_content.append("  - 考虑词频和逆文档频率，能够反映词语的重要性")
+            report_content.append("  - 计算效率高，适合大规模文本处理")
+            report_content.append("  - 结果易于解释和理解")
+            report_content.append("- 缺点：")
+            report_content.append("  - 不考虑词序和语义关系")
+            report_content.append("  - 对于短文本效果可能不够理想")
+            report_content.append("  - 无法处理同义词和多义词\n")
+
+            report_content.append("\n#### Word2Vec 算法\n")
+            report_content.append("- 优点：")
+            report_content.append("  - 能够捕捉词语的语义关系")
+            report_content.append("  - 可以处理同义词")
+            report_content.append("  - 生成的向量具有良好的语义特性")
+            report_content.append("- 缺点：")
+            report_content.append("  - 需要大量训练数据")
+            report_content.append("  - 计算资源消耗较大")
+            report_content.append("  - 结果不如TF-IDF直观\n")
+
+            report_content.append("\n#### 编辑距离算法\n")
+            report_content.append("- 优点：")
+            report_content.append("  - 直接比较字符串差异，结果直观")
+            report_content.append("  - 不需要预训练或特征提取")
+            report_content.append("  - 适合检测拼写错误和细微差异")
+            report_content.append("- 缺点：")
+            report_content.append("  - 计算复杂度较高")
+            report_content.append("  - 不考虑语义信息")
+            report_content.append("  - 对文本长度敏感\n")
             
             for year in years:
                 report_content.append(f"\n## {year}年分析结果\n")
                 
+                # 生成相似度分布对比图
+                self.plot_similarity_comparison(year)
+                report_content.append(f"\n### 相似度分布对比\n")
+                report_content.append(f"![相似度分布对比](similarity_comparison_{year}.png)\n")
+                
+                # 添加性能分析
+                performance = self._analyze_algorithm_performance(year)
+                if performance:
+                    report_content.append("\n### 算法性能对比\n")
+                    report_content.append("| 算法 | 处理时间(秒) | 内存占用(MB) | 稀疏度 |")
+                    report_content.append("|------|------------|------------|--------|")
+                    for method in methods:
+                        if method in performance:
+                            perf = performance[method]
+                            report_content.append(
+                                f"| {method_names[method]} | {perf['time']:.4f} | {perf['memory']:.2f} | {perf['sparsity']:.4f} |"
+                            )
+                
                 for method in methods:
-                    report_content.append(f"\n### {method.upper()}方法\n")
-                    
-                    # 加载向量和标签
-                    vectors = self._load_vectors(year, method)
-                    labels = self._load_labels(year, method)
-                    
-                    if len(vectors) > 0 and len(labels) > 0:
-                        # 生成相似度热图
-                        similarity_matrix = np.load(os.path.join('data', 'similarity', f'similarity_{method}_{year}.npy'))
-                        self.plot_similarity_heatmap(similarity_matrix, year, method)
-                        
-                        # 生成聚类散点图
-                        if len(vectors) == len(labels):
-                            self.plot_cluster_scatter(vectors, labels, year, method)
-                        else:
-                            logger.error(f'{year}年{method}方法的向量数量({len(vectors)})与标签数量({len(labels)})不匹配')
+                    report_content.append(f"\n### {method_names[method]}方法\n")
                     
                     # 相似度分布分析
                     sim_stats = self._analyze_similarity_distribution(year, method)
