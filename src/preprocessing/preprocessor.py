@@ -112,11 +112,11 @@ class TitlePreprocessor:
             logger.error(f"处理文件时出错: {str(e)}")
             return False
             
-    def process_all(self, input_dir: str, output_dir: str) -> bool:
-        """处理目录下的所有文件
+    def process_all(self, years: List[int], output_dir: str) -> bool:
+        """处理多个年份的数据
         
         Args:
-            input_dir: 输入目录
+            years: 年份列表
             output_dir: 输出目录
             
         Returns:
@@ -124,12 +124,11 @@ class TitlePreprocessor:
         """
         try:
             success = True
-            for filename in os.listdir(input_dir):
-                if filename.startswith('thesis_titles_') and filename.endswith('.csv'):
-                    input_path = os.path.join(input_dir, filename)
-                    logger.info(f"正在处理文件: {filename}")
-                    if not self.process_file(input_path, output_dir):
-                        success = False
+            for year in years:
+                input_path = os.path.join("data", "raw", f"thesis_titles_{year}.csv")
+                logger.info(f"正在处理 {year} 年的数据...")
+                if not self.process_file(input_path, output_dir):
+                    success = False
             return success
         except Exception as e:
             logger.error(f"批量处理文件时出错: {str(e)}")

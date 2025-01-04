@@ -19,7 +19,7 @@ class ClusteringError(Exception):
     """聚类分析错误的基类"""
     pass
 
-class Clusterer:
+class TitleClusterer:
     """聚类分析类"""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -307,3 +307,37 @@ class Clusterer:
         except Exception as e:
             self.logger.error(f"处理年份数据时出错: {str(e)}")
             raise 
+            
+    def cluster_all(self, years: List[int], output_dir: str) -> bool:
+        """对多个年份的数据进行聚类
+        
+        Args:
+            years: 年份列表
+            output_dir: 输出目录
+            
+        Returns:
+            是否成功
+        """
+        try:
+            for year in years:
+                # 对每个向量化方法进行聚类
+                for method in ['tfidf', 'word2vec']:
+                    # 执行聚类
+                    labels, centers, metrics = self.cluster(year, method)
+                    
+                    # 保存结果
+                    self.save_results(year, method, labels, centers, metrics)
+                    
+                    # 可视化结果
+                    vectors = self._load_vectors(year, method)
+                    output_file = os.path.join(
+                        output_dir,
+                        f"cluster_visualization_{method}_{year}.png"
+                    )
+                    self.visualize_clusters(vectors, labels, output_file)
+                    
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"聚类分析时出错: {str(e)}")
+            return False 

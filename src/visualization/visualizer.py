@@ -20,7 +20,7 @@ class VisualizationError(Exception):
     """可视化过程中的异常类"""
     pass
 
-class Visualizer:
+class TitleVisualizer:
     """论文标题相似度和聚类结果的可视化类"""
     
     def __init__(self, results_dir: str = RESULTS_DIR, 
@@ -47,26 +47,21 @@ class Visualizer:
         # 配置日志
         self.logger = logging.getLogger(__name__)
         
-    def _load_similarity_matrix(self, year1: int, year2: int, method: str) -> np.ndarray:
+    def _load_similarity_matrix(self, year: int, method: str) -> np.ndarray:
         """
         加载相似度矩阵
         
         Args:
-            year1: 第一年
-            year2: 第二年
-            method: 相似度计算方法 ('tfidf', 'word2vec', 'edit_distance')
+            year: 年份
+            method: 相似度计算方法 ('tfidf', 'word2vec')
             
         Returns:
             相似度矩阵
         """
         try:
-            if method in ['tfidf', 'word2vec']:
-                filename = f'cosine_similarity_{method}_{year1}_{year2}.npz'
-            else:
-                filename = f'edit_distance_similarity_{year1}_{year2}.npz'
-                
-            filepath = os.path.join(self.results_dir, filename)
-            return sparse.load_npz(filepath).toarray()
+            filename = f'similarity_{method}_{year}.npy'
+            filepath = os.path.join('data', 'similarity', filename)
+            return np.load(filepath)
         except Exception as e:
             raise VisualizationError(f'加载相似度矩阵失败: {str(e)}')
             
@@ -88,22 +83,20 @@ class Visualizer:
         except Exception as e:
             raise VisualizationError(f'加载标题数据失败: {str(e)}')
             
-    def plot_similarity_heatmap(self, year1: int, year2: int, method: str,
+    def plot_similarity_heatmap(self, year: int, method: str,
                               output_file: Optional[str] = None) -> None:
         """
         绘制相似度热力图
         
         Args:
-            year1: 第一年
-            year2: 第二年
+            year: 年份
             method: 相似度计算方法
             output_file: 输出文件名
         """
         try:
             # 加载数据
-            similarity_matrix = self._load_similarity_matrix(year1, year2, method)
-            titles1 = self._load_titles(year1)
-            titles2 = self._load_titles(year2)
+            similarity_matrix = self._load_similarity_matrix(year, method)
+            titles = self._load_titles(year)
             
             # 获取配置
             config = self.config['heatmap']
@@ -111,13 +104,13 @@ class Visualizer:
             # 创建图像
             plt.figure(figsize=config['figsize'])
             sns.heatmap(similarity_matrix, cmap=config['cmap'], xticklabels=False, yticklabels=False)
-            plt.title(f'标题相似度热力图 ({method}, {year1}-{year2})')
-            plt.xlabel(f'{year2}年标题')
-            plt.ylabel(f'{year1}年标题')
+            plt.title(f'标题相似度热力图 ({method}, {year})')
+            plt.xlabel('标题')
+            plt.ylabel('标题')
             
             # 保存图像
             if output_file is None:
-                output_file = f'similarity_heatmap_{method}_{year1}_{year2}.png'
+                output_file = f'similarity_heatmap_{method}_{year}.png'
             output_path = os.path.join(self.output_dir, output_file)
             plt.savefig(output_path, dpi=config['dpi'], bbox_inches='tight')
             plt.close()
@@ -126,20 +119,19 @@ class Visualizer:
         except Exception as e:
             raise VisualizationError(f'生成热力图失败: {str(e)}')
             
-    def plot_similarity_distribution(self, year1: int, year2: int, method: str,
+    def plot_similarity_distribution(self, year: int, method: str,
                                    output_file: Optional[str] = None) -> None:
         """
         绘制相似度分布图
         
         Args:
-            year1: 第一年
-            year2: 第二年
+            year: 年份
             method: 相似度计算方法
             output_file: 输出文件名
         """
         try:
             # 加载数据
-            similarity_matrix = self._load_similarity_matrix(year1, year2, method)
+            similarity_matrix = self._load_similarity_matrix(year, method)
             
             # 获取配置
             config = self.config['distribution']
@@ -147,14 +139,14 @@ class Visualizer:
             # 创建图像
             plt.figure(figsize=config['figsize'])
             sns.histplot(similarity_matrix.flatten(), bins=config['bins'], kde=True)
-            plt.title(f'标题相似度分布 ({method}, {year1}-{year2})')
+            plt.title(f'标题相似度分布 ({method}, {year})')
             plt.xlabel('相似度值')
             plt.ylabel('频数')
             plt.grid(True, alpha=0.3)
             
             # 保存图像
             if output_file is None:
-                output_file = f'similarity_distribution_{method}_{year1}_{year2}.png'
+                output_file = f'similarity_distribution_{method}_{year}.png'
             output_path = os.path.join(self.output_dir, output_file)
             plt.savefig(output_path, dpi=config['dpi'], bbox_inches='tight')
             plt.close()
@@ -261,19 +253,22 @@ class Visualizer:
             是否全部成功
         """
         success = True
-        methods = ['tfidf', 'word2vec', 'edit_distance']
+        methods = ['tfidf', 'word2vec']
         
         try:
             # 生成相似度相关的可视化
-            for i in range(len(years)-1):
-                year1, year2 = years[i], years[i+1]
+            for year in years:
                 for method in methods:
-                    self.plot_similarity_heatmap(year1, year2, method)
-                    self.plot_similarity_distribution(year1, year2, method)
+                    try:
+                        self.plot_similarity_heatmap(year, method)
+                        self.plot_similarity_distribution(year, method)
+                    except Exception as e:
+                        self.logger.error(f'生成{year}年{method}方法的相似度可视化失败: {str(e)}')
+                        success = False
             
             # 生成聚类相关的可视化
-            for year in years[:-1]:  # 最后一年没有聚类结果
-                for method in ['tfidf', 'word2vec']:  # 编辑距离方法没有聚类结果
+            for year in years:
+                for method in methods:
                     try:
                         self.plot_cluster_scatter(year, method)
                         self.plot_cluster_sizes(year, method)
@@ -286,3 +281,86 @@ class Visualizer:
             success = False
             
         return success
+            
+    def plot_similarity_heatmaps(self, years: List[int], output_dir: str) -> bool:
+        """生成所有年份的相似度热图
+        
+        Args:
+            years: 年份列表
+            output_dir: 输出目录
+            
+        Returns:
+            是否成功
+        """
+        try:
+            for method in ['tfidf', 'word2vec']:
+                for year in years:
+                    # 加载相似度矩阵
+                    similarity_matrix = np.load(os.path.join(
+                        'data',
+                        'similarity',
+                        f"similarity_{method}_{year}.npy"
+                    ))
+                    
+                    # 绘制热图
+                    plt.figure(figsize=self.config['heatmap']['figsize'])
+                    sns.heatmap(
+                        similarity_matrix,
+                        cmap=self.config['heatmap']['cmap'],
+                        xticklabels=False,
+                        yticklabels=False
+                    )
+                    plt.title(f'标题相似度热图 ({method}, {year})')
+                    
+                    # 保存图像
+                    output_file = os.path.join(
+                        output_dir,
+                        f"similarity_heatmap_{method}_{year}.png"
+                    )
+                    plt.savefig(
+                        output_file,
+                        dpi=self.config['heatmap']['dpi'],
+                        bbox_inches='tight'
+                    )
+                    plt.close()
+                    
+                    self.logger.info(f'已生成热图: {output_file}')
+                    
+            return True
+            
+        except Exception as e:
+            self.logger.error(f'生成相似度热图失败: {str(e)}')
+            return False
+            
+    def plot_clustering_results(self, years: List[int], output_dir: str) -> bool:
+        """生成所有年份的聚类结果可视化
+        
+        Args:
+            years: 年份列表
+            output_dir: 输出目录
+            
+        Returns:
+            是否成功
+        """
+        try:
+            for method in ['tfidf', 'word2vec']:
+                for year in years:
+                    # 生成散点图
+                    self.plot_cluster_scatter(
+                        year,
+                        method,
+                        os.path.join(output_dir, f"cluster_scatter_{method}_{year}.png")
+                    )
+                    
+                    # 生成大小分布图
+                    self.plot_cluster_sizes(
+                        year,
+                        method,
+                        os.path.join(output_dir, f"cluster_sizes_{method}_{year}.png")
+                    )
+                    
+            return True
+            
+        except Exception as e:
+            self.logger.error(f'生成聚类结果可视化失败: {str(e)}')
+            return False

@@ -86,35 +86,53 @@ TitleSimilarityClustering/
 
 ### 运行流程
 
+#### 方式一：一键运行
+运行主流水线脚本，将依次执行所有处理步骤：
+```bash
+python scripts/run_pipeline.py
+```
+
+#### 方式二：逐步运行
+如果需要分步执行或调试，可以按以下顺序运行各个步骤：
+
 1. 数据获取：
    ```bash
-   python run_crawler.py
+   python scripts/run_crawler.py
    ```
 
 2. 数据预处理：
    ```bash
-   python run_preprocessor.py
+   python scripts/run_preprocessor.py
    ```
 
 3. 文本向量化：
    ```bash
-   python run_vectorization.py
+   python scripts/run_vectorization.py
    ```
 
 4. 相似度计算：
    ```bash
-   python run_similarity.py
+   python scripts/run_similarity.py
    ```
 
 5. 聚类分析：
    ```bash
-   python run_clustering.py
+   python scripts/run_clustering.py
    ```
 
 6. 可视化结果：
    ```bash
-   python run_visualization.py
+   python scripts/run_visualization.py
    ```
+
+每个步骤的输出结果都会保存在相应的目录中：
+- 预处理结果：`data/processed/`
+- 向量化结果：`data/vectorized/`
+- 相似度矩阵：`data/similarity/`
+- 聚类结果：`results/`
+- 可视化结果：`data/visualization/`
+
+运行日志会保存在 `logs` 目录下，可以查看详细的执行过程和错误信息。
 
 ## 配置说明
 
