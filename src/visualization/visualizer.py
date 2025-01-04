@@ -10,6 +10,7 @@ import logging
 from scipy import sparse
 from src.config import VISUALIZATION_CONFIG, PROCESSED_DATA_DIR, RESULTS_DIR
 import matplotlib as mpl
+from sklearn.decomposition import PCA
 
 # 配置字体支持
 mpl.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'SimSun', 'NSimSun', 'FangSong', 'KaiTi', 'Arial Unicode MS']
@@ -25,7 +26,7 @@ class TitleVisualizer:
     
     def __init__(self, results_dir: str = RESULTS_DIR, 
                  processed_dir: str = PROCESSED_DATA_DIR,
-                 output_dir: str = 'results/visualizations',
+                 output_dir: str = 'results/visualization',
                  config: Dict = VISUALIZATION_CONFIG):
         """
         初始化可视化器
@@ -82,6 +83,33 @@ class TitleVisualizer:
             return df['title'].tolist()
         except Exception as e:
             raise VisualizationError(f'加载标题数据失败: {str(e)}')
+            
+    def _load_vectors(self, year: int, method: str) -> np.ndarray:
+        """加载向量数据
+        
+        Args:
+            year: 年份
+            method: 向量化方法，可选 'tfidf' 或 'word2vec'
+            
+        Returns:
+            向量矩阵
+            
+        Raises:
+            VisualizationError: 如果文件不存在或格式错误
+        """
+        try:
+            if method == 'tfidf':
+                file_path = os.path.join("data", "vectorized", f"tfidf_vectors_{year}.npz")
+                vectors = sparse.load_npz(file_path)
+                return vectors.toarray()
+            elif method == 'word2vec':
+                file_path = os.path.join("data", "vectorized", f"word2vec_vectors_{year}.npy")
+                vectors = np.load(file_path)
+                return vectors
+            else:
+                raise VisualizationError(f"不支持的向量化方法: {method}")
+        except Exception as e:
+            raise VisualizationError(f"加载向量文件时出错: {str(e)}")
             
     def plot_similarity_heatmap(self, year: int, method: str,
                               output_file: Optional[str] = None) -> None:
@@ -168,9 +196,9 @@ class TitleVisualizer:
         try:
             # 加载数据
             if method == 'tfidf':
-                vectors = sparse.load_npz(os.path.join(self.processed_dir, f'tfidf_vectors_{year}.npz')).toarray()
+                vectors = sparse.load_npz(os.path.join("data", "vectorized", f'tfidf_vectors_{year}.npz')).toarray()
             else:
-                vectors = np.load(os.path.join(self.processed_dir, f'word2vec_vectors_{year}.npy'))
+                vectors = np.load(os.path.join("data", "vectorized", f'word2vec_vectors_{year}.npy'))
                 
             clusters_df = pd.read_csv(os.path.join(self.results_dir, f'clusters_{method}_{year}.csv'))
             labels = clusters_df['cluster_id'].values
@@ -282,57 +310,49 @@ class TitleVisualizer:
             
         return success
             
-    def plot_similarity_heatmaps(self, years: List[int], output_dir: str) -> bool:
-        """生成所有年份的相似度热图
+    def plot_similarity_heatmaps(self, years: List[int], output_dir: str = 'results/visualization') -> bool:
+        """生成所有年份的相似度矩阵热图
         
         Args:
             years: 年份列表
             output_dir: 输出目录
             
         Returns:
-            是否成功
+            是否全部成功
         """
+        success = True
+        methods = ['tfidf', 'word2vec']
+        
         try:
-            for method in ['tfidf', 'word2vec']:
-                for year in years:
-                    # 加载相似度矩阵
-                    similarity_matrix = np.load(os.path.join(
-                        'data',
-                        'similarity',
-                        f"similarity_{method}_{year}.npy"
-                    ))
-                    
-                    # 绘制热图
-                    plt.figure(figsize=self.config['heatmap']['figsize'])
-                    sns.heatmap(
-                        similarity_matrix,
-                        cmap=self.config['heatmap']['cmap'],
-                        xticklabels=False,
-                        yticklabels=False
-                    )
-                    plt.title(f'标题相似度热图 ({method}, {year})')
-                    
-                    # 保存图像
-                    output_file = os.path.join(
-                        output_dir,
-                        f"similarity_heatmap_{method}_{year}.png"
-                    )
-                    plt.savefig(
-                        output_file,
-                        dpi=self.config['heatmap']['dpi'],
-                        bbox_inches='tight'
-                    )
-                    plt.close()
-                    
-                    self.logger.info(f'已生成热图: {output_file}')
-                    
-            return True
-            
+            for year in years:
+                for method in methods:
+                    try:
+                        # 加载相似度矩阵
+                        similarity_matrix = np.load(os.path.join('data', 'similarity', f'similarity_{method}_{year}.npy'))
+                        
+                        # 生成热图
+                        plt.figure(figsize=(10, 8))
+                        sns.heatmap(similarity_matrix, cmap='YlOrRd')
+                        plt.title(f'{year}年论文标题相似度矩阵 ({method})')
+                        
+                        # 保存图片
+                        output_path = os.path.join(output_dir, f'similarity_heatmap_{method}_{year}.png')
+                        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                        plt.savefig(output_path)
+                        plt.close()
+                        
+                        self.logger.info(f'已生成热图: {output_path}')
+                    except Exception as e:
+                        self.logger.error(f'生成{year}年{method}方法的热图失败: {str(e)}')
+                        success = False
+                        
         except Exception as e:
-            self.logger.error(f'生成相似度热图失败: {str(e)}')
-            return False
+            self.logger.error(f'生成热图失败: {str(e)}')
+            success = False
             
-    def plot_clustering_results(self, years: List[int], output_dir: str) -> bool:
+        return success
+        
+    def plot_clustering_results(self, years: List[int], output_dir: str = 'results/visualization') -> bool:
         """生成所有年份的聚类结果可视化
         
         Args:
@@ -340,27 +360,49 @@ class TitleVisualizer:
             output_dir: 输出目录
             
         Returns:
-            是否成功
+            是否全部成功
         """
+        success = True
+        methods = ['tfidf', 'word2vec']
+        
         try:
-            for method in ['tfidf', 'word2vec']:
-                for year in years:
-                    # 生成散点图
-                    self.plot_cluster_scatter(
-                        year,
-                        method,
-                        os.path.join(output_dir, f"cluster_scatter_{method}_{year}.png")
-                    )
-                    
-                    # 生成大小分布图
-                    self.plot_cluster_sizes(
-                        year,
-                        method,
-                        os.path.join(output_dir, f"cluster_sizes_{method}_{year}.png")
-                    )
-                    
-            return True
-            
+            for year in years:
+                for method in methods:
+                    try:
+                        # 加载向量和聚类结果
+                        if method == 'tfidf':
+                            vectors = sparse.load_npz(os.path.join('data', 'vectorized', f'tfidf_vectors_{year}.npz')).toarray()
+                        else:
+                            vectors = np.load(os.path.join('data', 'vectorized', f'word2vec_vectors_{year}.npy'))
+                            
+                        clusters_df = pd.read_csv(os.path.join('results', f'clusters_{method}_{year}.csv'))
+                        labels = clusters_df['cluster_id'].values
+                        
+                        # 使用PCA降维到2维
+                        pca = PCA(n_components=2)
+                        vectors_2d = pca.fit_transform(vectors)
+                        
+                        # 创建散点图
+                        plt.figure(figsize=(10, 8))
+                        scatter = plt.scatter(vectors_2d[:, 0], vectors_2d[:, 1], c=labels, cmap='viridis')
+                        plt.colorbar(scatter)
+                        plt.title(f'{year}年论文标题聚类结果 ({method})')
+                        plt.xlabel('第一主成分')
+                        plt.ylabel('第二主成分')
+                        
+                        # 保存图片
+                        output_path = os.path.join(output_dir, f'cluster_scatter_{method}_{year}.png')
+                        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                        plt.savefig(output_path)
+                        plt.close()
+                        
+                        self.logger.info(f'已生成散点图: {output_path}')
+                    except Exception as e:
+                        self.logger.error(f'生成{year}年{method}方法的散点图失败: {str(e)}')
+                        success = False
+                        
         except Exception as e:
-            self.logger.error(f'生成聚类结果可视化失败: {str(e)}')
-            return False
+            self.logger.error(f'生成散点图失败: {str(e)}')
+            success = False
+            
+        return success

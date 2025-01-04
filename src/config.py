@@ -10,6 +10,19 @@ RAW_DATA_DIR = DATA_DIR / "raw"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 RESULTS_DIR = ROOT_DIR / "results"
 
+# 年份范围配置
+YEAR_RANGE = {
+    'start_year': 2020,
+    'end_year': 2024  # 包含此年份
+}
+
+# 爬虫配置
+CRAWLER_CONFIG = {
+    'batch_size': 100,
+    'timeout': 10,
+    'retry_times': 3
+}
+
 # 预处理模块配置
 PREPROCESSING_CONFIG = {
     "stopwords_path": str(ROOT_DIR / "src" / "preprocessing" / "stopwords.txt"),

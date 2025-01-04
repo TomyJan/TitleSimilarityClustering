@@ -226,3 +226,20 @@ class CNKICrawler:
         except Exception as e:
             logger.error(f"爬取过程中出错: {str(e)}")
             return False
+
+    def crawl_all(self, years: list) -> bool:
+        """爬取多个年份的论文数据
+        
+        Args:
+            years: 要爬取的年份列表
+            
+        Returns:
+            bool: 是否全部爬取成功
+        """
+        success = True
+        for year in years:
+            start_date = f"{year}-01-01"
+            end_date = f"{year}-12-31"
+            if not self.crawl_papers(start_date, end_date):
+                success = False
+        return success

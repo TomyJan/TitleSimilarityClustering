@@ -46,11 +46,11 @@ class TitleClusterer:
         """
         try:
             if method == 'tfidf':
-                file_path = os.path.join(PROCESSED_DATA_DIR, f"tfidf_vectors_{year}.npz")
+                file_path = os.path.join("data", "vectorized", f"tfidf_vectors_{year}.npz")
                 vectors = sparse.load_npz(file_path)
                 return vectors.toarray()
             elif method == 'word2vec':
-                file_path = os.path.join(PROCESSED_DATA_DIR, f"word2vec_vectors_{year}.npy")
+                file_path = os.path.join("data", "vectorized", f"word2vec_vectors_{year}.npy")
                 vectors = np.load(file_path)
                 return vectors
             else:
@@ -71,7 +71,7 @@ class TitleClusterer:
             ClusteringError: 如果文件不存在或格式错误
         """
         try:
-            file_path = os.path.join(PROCESSED_DATA_DIR, f"cleaned_titles_{year}.csv")
+            file_path = os.path.join("data", "preprocessed", f"cleaned_titles_{year}.csv")
             df = pd.read_csv(file_path)
             if not all(col in df.columns for col in ['id', 'title']):
                 raise ClusteringError(f"标题文件缺少必需的列: {file_path}")

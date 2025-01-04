@@ -12,7 +12,7 @@ import logging
 import traceback
 from datetime import datetime
 from src.preprocessing.preprocessor import TitlePreprocessor
-from src.config import PREPROCESSING_CONFIG
+from src.config import YEAR_RANGE
 
 def setup_logging() -> None:
     """配置日志系统"""
@@ -34,21 +34,21 @@ def setup_logging() -> None:
 
 def main() -> None:
     """主函数"""
-    # 设置日志
+    # 配置日志
     setup_logging()
     logger = logging.getLogger(__name__)
-    logger.info("开始数据预处理")
+    logger.info("开始预处理")
     
     try:
         # 初始化预处理器
         preprocessor = TitlePreprocessor()
         
-        # 获取要处理的年份
-        years = list(range(2020, 2024))  # 2020-2023
+        # 获取年份范围
+        years = list(range(YEAR_RANGE['start_year'], YEAR_RANGE['end_year'] + 1))
         logger.info(f"将处理以下年份: {years}")
         
         # 确保输出目录存在
-        output_dir = os.path.join(project_root, "data", "preprocessed")
+        output_dir = os.path.join("data", "preprocessed")
         os.makedirs(output_dir, exist_ok=True)
         
         # 执行预处理
@@ -57,11 +57,10 @@ def main() -> None:
             logger.error("预处理过程中出现错误")
             sys.exit(1)
             
-        logger.info("数据预处理完成")
+        logger.info("预处理完成")
         
     except Exception as e:
-        logger.error(f"数据预处理出错: {str(e)}")
-        logger.error(traceback.format_exc())
+        logger.error(f"预处理出错: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":

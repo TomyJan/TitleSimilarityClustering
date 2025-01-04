@@ -3,10 +3,15 @@
 
 import os
 import sys
+
+# 添加项目根目录到 Python 路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
 import logging
 from datetime import datetime
-from src.crawler.crawler import Crawler
-from src.config import CRAWLER_CONFIG
+from src.crawler.crawler import CNKICrawler
+from src.config import YEAR_RANGE
 
 def setup_logging() -> None:
     """配置日志系统"""
@@ -28,30 +33,30 @@ def setup_logging() -> None:
 
 def main() -> None:
     """主函数"""
-    # 设置日志
+    # 配置日志
     setup_logging()
     logger = logging.getLogger(__name__)
-    logger.info("开始爬取论文数据")
+    logger.info("开始爬取论文标题")
     
     try:
         # 初始化爬虫
-        crawler = Crawler()
+        crawler = CNKICrawler()
         
-        # 获取要处理的年份
-        years = list(range(2020, 2024))  # 2020-2023
-        logger.info(f"将处理以下年份: {years}")
+        # 获取年份范围
+        years = list(range(YEAR_RANGE['start_year'], YEAR_RANGE['end_year'] + 1))
+        logger.info(f"将爬取以下年份的数据: {years}")
         
-        # 执行爬取
-        success = crawler.crawl_years(years)
-        if not success:
-            logger.error("爬取过程中出现错误")
+        # 爬取数据
+        success = crawler.crawl_all(years)
+        
+        if success:
+            logger.info("数据爬取完成")
+        else:
+            logger.error("数据爬取过程中出现错误")
             sys.exit(1)
             
-        logger.info("数据爬取完成")
-        
     except Exception as e:
         logger.error(f"爬虫运行出错: {str(e)}")
-        logger.error(traceback.format_exc())
         sys.exit(1)
 
 if __name__ == "__main__":
