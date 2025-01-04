@@ -9,32 +9,23 @@
 3. 比较不同相似度算法的效果
 4. 优化代码实现以提高性能
 
-## 技术实现路线
+## 项目架构
 
 ### 1. 数据处理
-- CSV 文件处理：使用 Python 的 `pandas` 库进行 CSV 文件的读写操作
-- 文本预处理：使用 `jieba` 分词库进行中文分词
+- [数据爬取模块](src/crawler/README.md)：使用 Python 爬虫获取论文标题数据
+- [数据预处理模块](src/preprocessing/README.md)：使用 jieba 分词进行文本预处理
 - 停用词处理：去除常见停用词，提高文本分析质量
 
-### 2. 文本向量化
-实现多种文本向量化方法：
-- TF-IDF (Term Frequency-Inverse Document Frequency)
-- Word2Vec
-- 字符级编码
-
-### 3. 相似度计算
-实现两种相似度算法：
-- 余弦相似度：计算文本向量间的夹角余弦值
-- 编辑距离相似度：计算将一个字符串转换成另一个所需的最小操作次数
-
-### 4. 聚类分析
-- 使用 K-means 算法进行文本聚类
-- 分析不同年级论文标题的聚类结果
-
-### 5. 性能优化
-- 代码优化
-- 算法效率提升
-- 内存使用优化
+### 2. 文本分析
+- [文本向量化模块](src/vectorization/README.md)：实现多种文本向量化方法
+  - TF-IDF (Term Frequency-Inverse Document Frequency)
+  - Word2Vec
+  - 字符级编码
+- [相似度计算模块](src/similarity/README.md)：实现多种相似度算法
+  - 余弦相似度：计算文本向量间的夹角余弦值
+  - 编辑距离相似度：计算字符串转换的最小操作次数
+- [聚类分析模块](src/clustering/README.md)：使用 K-means 算法进行文本聚类
+- [可视化模块](src/visualization/README.md)：生成相似度和聚类结果的可视化图表
 
 ## 项目结构
 
@@ -48,9 +39,11 @@ TitleSimilarityClustering/
 │   ├── preprocessing/      # 数据预处理模块
 │   ├── vectorization/      # 文本向量化模块
 │   ├── similarity/         # 相似度计算模块
-│   └── clustering/         # 聚类分析模块
+│   ├── clustering/         # 聚类分析模块
+│   └── visualization/      # 可视化模块
 ├── tests/                  # 测试文件
 ├── results/                # 结果输出
+│   └── visualizations/     # 可视化结果
 └── requirements.txt        # 项目依赖
 ```
 
@@ -61,63 +54,9 @@ TitleSimilarityClustering/
 - jieba: 中文分词
 - numpy: 数值计算
 - scikit-learn: 机器学习算法
-- matplotlib: 数据可视化
+- matplotlib & seaborn: 数据可视化
 - gensim: Word2Vec模型
 - scipy: 稀疏矩阵处理
-
-## 实现步骤
-
-1. **数据爬取**
-    - 爬取论文标题数据
-
-2. **数据预处理**
-   - CSV 文件读取与处理
-   - 文本清洗
-   - 分词与停用词去除
-
-3. **文本向量化**
-   ```bash
-   # 运行向量化处理
-   python run_vectorization.py
-   ```
-   
-   向量化处理会生成三种类型的向量表示：
-   - TF-IDF向量 (`data/processed/tfidf_vectors_{year}.npz`)
-   - Word2Vec向量 (`data/processed/word2vec_vectors_{year}.npy`)
-   - 字符级向量 (`data/processed/char_vectors_{year}.npz`)
-   
-   同时会生成相应的特征文件：
-   - TF-IDF特征词表 (`data/processed/tfidf_features.json`)
-   - Word2Vec模型 (`data/processed/word2vec_model.bin`)
-   - 字符映射表 (`data/processed/char_features.json`)
-
-4. **相似度计算**
-   - 实现余弦相似度算法
-   - 实现编辑距离相似度算法
-   - 计算不同年级论文标题间的相似度
-
-5. **聚类分析**
-   - K-means 聚类实现
-   - 聚类结果分析与可视化
-
-6. **性能优化**
-   - 代码优化
-   - 算法效率提升
-   - 结果对比分析
-
-## 预期成果
-
-1. 完整的标题相似度分析系统
-2. 不同相似度算法的对比分析报告
-3. 聚类结果的可视化展示
-4. 优化前后的性能对比报告
-
-## 注意事项
-
-1. 确保数据质量和预处理的准确性
-2. 注意大规模数据处理时的性能问题
-3. 保持代码的可维护性和可扩展性
-4. 详细记录实验结果和优化过程
 
 ## 使用说明
 
@@ -145,186 +84,37 @@ TitleSimilarityClustering/
    pip install -r requirements.txt
    ```
 
-### 数据获取
+### 运行流程
 
-运行爬虫获取论文数据：
-
-1. 爬取指定时间范围的数据：
+1. 数据获取：
    ```bash
    python run_crawler.py
    ```
-   爬取的时间长度在 run_crawler.py 中配置
 
-爬虫运行说明：
-- 数据将保存在 `data/raw/` 目录下，文件名格式为 `thesis_titles_{year}.csv`
-- 每个年份的数据单独保存为一个 CSV 文件
-- 数据包含以下字段：
-  - id: 论文唯一标识符
-  - title: 论文标题（已清洗）
-  - publish_date: 发表日期（格式：YYYY-MM-DD）
-  - author: 第一作者
-  - major: 专业分类（固定为"信息科技"）
-
-注意事项：
-1. 默认爬取信息科技领域的论文
-2. 数据格式要求：
-   - 编码：UTF-8
-   - 分隔符：逗号 (,)
-   - 包含表头
-   - 所有字段都不允许为空
-   - 标题必须是规范的中文或英文，不包含特殊字符
-3. 如遇到访问限制，可以：
-   - 适当增加爬取间隔
-   - 更换网络环境
-   - 更新请求头信息
-
-### 数据预处理
-
-1. 运行预处理脚本：
-```bash
-python run_preprocessor.py
-```
-
-预处理步骤说明：
-1. 分词处理
-   - 使用 jieba 进行中文分词
-   - 输出文件：`data/processed/tokenized_titles_{year}.csv`
-   - 包含字段：
-     - id: 论文唯一标识符
-     - title: 原始论文标题
-     - tokens: 分词结果（空格分隔）
-     - year: 论文年份
-
-2. 停用词处理
-   - 使用预定义的停用词表过滤无意义词语
-   - 停用词表位置：`src/preprocessing/stopwords.txt`
-   - 停用词来源：https://github.com/CharyHong/Stopwords/blob/main/stopwords_full.txt
-
-3. 清洗结果
-   - 输出文件：`data/processed/cleaned_titles_{year}.csv`
-   - 包含字段：
-     - id: 论文唯一标识符
-     - title: 原始论文标题
-     - cleaned_tokens: 去停用词后的分词结果（空格分隔）
-     - year: 论文年份
-
-注意事项：
-1. 确保已安装必要的依赖：
+2. 数据预处理：
    ```bash
-   pip install jieba
+   python run_preprocessor.py
    ```
-2. 所有输出文件采用 UTF-8 编码
-3. CSV 文件包含表头，使用逗号分隔
-4. 分词结果中的词语使用单个空格分隔
-5. 所有字段都不允许为空
 
-### 文本向量化
+3. 文本向量化：
+   ```bash
+   python run_vectorization.py
+   ```
 
-1. 运行向量化脚本：
-```bash
-python run_vectorization.py
-```
+4. 相似度计算：
+   ```bash
+   python run_similarity.py
+   ```
 
-向量化处理会对2020-2024年的所有数据进行处理，生成三种不同的向量表示：
-- TF-IDF向量 (`data/processed/tfidf_vectors_{year}.npz`)
-- Word2Vec向量 (`data/processed/word2vec_vectors_{year}.npy`)
-- 字符级向量 (`data/processed/char_vectors_{year}.npz`)
+5. 聚类分析：
+   ```bash
+   python run_clustering.py
+   ```
 
-同时会生成相应的特征文件：
-- TF-IDF特征词表 (`data/processed/tfidf_features.json`)
-- Word2Vec模型 (`data/processed/word2vec_model.bin`)
-- 字符映射表 (`data/processed/char_features.json`)
-
-向量化原理：
-1. TF-IDF向量化
-   - 计算词频(TF)和逆文档频率(IDF)
-   - 使用稀疏矩阵存储高维向量
-   - 通过配置控制特征词数量
-
-2. Word2Vec向量化
-   - 训练词向量模型捕捉语义关系
-   - 通过平均词向量得到文档向量
-   - 使用密集矩阵存储低维向量
-
-3. 字符级向量化
-   - 构建字符级的one-hot编码
-   - 保持文本的字符级特征
-   - 使用稀疏矩阵存储高维向量
-
-注意事项：
-1. 确保已完成数据预处理步骤
-2. 检查生成的向量文件大小是否合理
-3. 验证特征文件的完整性
-4. 注意内存使用，特别是处理大规模数据时
-
-### 相似度计算
-
-运行相似度计算脚本：
-```bash
-python run_similarity.py
-```
-
-相似度计算说明：
-1. 支持三种计算方法：
-   - TF-IDF余弦相似度：基于词频-逆文档频率的文本相似度
-   - Word2Vec余弦相似度：基于词向量的语义相似度
-   - 编辑距离相似度：基于字符级别的文本相似度
-
-2. 输出文件：
-   - 相似度矩阵：`results/cosine_similarity_{method}_{year1}_{year2}.npz`
-   - 编辑距离：`results/edit_distance_similarity_{year1}_{year2}.npz`
-   - 统计信息：`results/similarity_metadata_{year1}_{year2}.json`
-
-3. 注意事项：
-   - 确保已完成向量化处理
-   - 结果使用稀疏矩阵存储，节省空间
-   - 自动处理所有年份组合
-   - 可通过配置文件调整相似度阈值
-
-### 聚类分析
-
-运行聚类分析脚本：
-```bash
-python run_clustering.py
-```
-
-聚类分析模块会对向量化后的标题进行聚类分析，生成聚类结果和可视化。
-
-### 可视化分析
-
-1. 运行可视化脚本：
-```bash
-python run_visualization.py
-```
-
-可视化模块提供以下功能：
-
-1. 相似度可视化
-   - 相似度热力图：直观展示标题间的相似度分布
-   - 相似度分布图：展示相似度值的统计分布
-   - 输出文件：
-     - `results/visualizations/similarity_heatmap_{method}_{year1}_{year2}.png`
-     - `results/visualizations/similarity_distribution_{method}_{year1}_{year2}.png`
-
-2. 聚类可视化
-   - 聚类散点图：使用t-SNE降维展示聚类结果
-   - 聚类大小分布图：展示各个簇的大小分布
-   - 输出文件：
-     - `results/visualizations/cluster_scatter_{method}_{year}.png`
-     - `results/visualizations/cluster_sizes_{method}_{year}.png`
-
-可视化配置：
-1. 通过 `src/config.py` 中的 `VISUALIZATION_CONFIG` 配置：
-   - 图像大小
-   - 颜色方案
-   - DPI设置
-   - 分箱数量等参数
-
-注意事项：
-1. 确保已完成相似度计算和聚类分析
-2. 大规模数据可视化时注意内存使用
-3. 建议使用高DPI设置以获得高质量图像
-4. 处理大量数据时可能需要较长时间
+6. 可视化结果：
+   ```bash
+   python run_visualization.py
+   ```
 
 ## 配置说明
 
@@ -335,45 +125,29 @@ python run_visualization.py
    - `PROCESSED_DATA_DIR`：处理后数据目录
    - `RESULTS_DIR`：结果输出目录
 
-2. 预处理配置：
-   - 停用词列表
-   - 标题长度限制
-   - 支持的语言
+2. 模块配置：
+   - `CRAWLER_CONFIG`：爬虫配置
+   - `PREPROCESSING_CONFIG`：预处理配置
+   - `VECTORIZATION_CONFIG`：向量化配置
+   - `SIMILARITY_CONFIG`：相似度计算配置
+   - `CLUSTERING_CONFIG`：聚类配置
+   - `VISUALIZATION_CONFIG`：可视化配置
 
-3. 向量化配置：
-   - TF-IDF参数：特征数量、文档频率范围
-   - Word2Vec参数：向量维度、窗口大小、最小词频
+详细配置说明请参考各模块文档。
 
-4. 相似度计算配置：
-   - 支持的计算方法
-   - 相似度阈值设置
-   - 输出格式配置
+## 输出结果
 
-5. 聚类配置：
-   - 聚类算法参数
-   - 评估指标设置
-   - 可视化配置
+1. 数据文件：
+   - 原始数据：`data/raw/thesis_titles_{year}.csv`
+   - 预处理结果：`data/processed/cleaned_titles_{year}.csv`
+   - 向量化结果：
+     - `data/processed/tfidf_vectors_{year}.npz`
+     - `data/processed/word2vec_vectors_{year}.npy`
 
-## 输出结果说明
-
-1. 预处理结果：
-   - `cleaned_titles_{year}.csv`：清洗后的标题
-   - `tokenized_titles_{year}.csv`：分词后的标题
-
-2. 向量化结果：
-   - `tfidf_vectors_{year}.npz`：TF-IDF向量
-   - `word2vec_vectors_{year}.npy`：Word2Vec向量
-   - `word2vec_model.bin`：训练好的Word2Vec模型
-
-3. 相似度计算结果：
-   - 相似度矩阵文件
-   - 元数据文件（包含统计信息）
-
-4. 聚类结果：
-   - 聚类标签文件
-   - 聚类中心文件
-   - 评估指标文件
-   - 可视化图表
+2. 分析结果：
+   - 相似度矩阵：`results/cosine_similarity_{method}_{year1}_{year2}.npz`
+   - 聚类结果：`results/clusters_{method}_{year}.csv`
+   - 可视化图表：`results/visualizations/`
 
 ## 注意事项
 
@@ -382,3 +156,31 @@ python run_visualization.py
 3. 存储空间：定期清理不需要的中间结果文件
 4. 配置调整：可以根据具体需求调整配置参数
 5. 日志查看：运行日志保存在 `logs` 目录下
+
+## 开发计划
+
+1. 功能优化：
+   - 支持增量数据处理
+   - 添加更多向量化方法
+   - 优化聚类算法
+
+2. 性能提升：
+   - 优化内存使用
+   - 提高处理速度
+   - 支持并行计算
+
+3. 可视化增强：
+   - 添加交互式图表
+   - 支持更多可视化方式
+   - 优化图表样式
+
+## 贡献指南
+
+1. Fork 本仓库
+2. 创建特性分支
+3. 提交更改
+4. 发起 Pull Request
+
+## 许可证
+
+本项目采用 MPL-2.0 许可证，详见 [LICENSE](LICENSE) 文件

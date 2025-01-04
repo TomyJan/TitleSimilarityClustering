@@ -1,16 +1,51 @@
 # 文本向量化模块
 
-## 功能说明
-本模块负责将预处理后的论文标题转换为向量表示，支持多种向量化方法。
+## 模块说明
+
+向量化模块负责将预处理后的论文标题转换为向量表示，支持多种向量化方法，为后续的相似度计算和聚类分析提供基础。
+
+## 主要功能
+
+1. TF-IDF向量化：
+   - 计算词频和逆文档频率
+   - 生成稀疏矩阵表示
+   - 支持特征选择
+
+2. Word2Vec向量化：
+   - 训练词向量模型
+   - 生成文档向量
+   - 支持增量训练
+
+3. 字符级向量化：
+   - 构建字符级特征
+   - 生成one-hot编码
+   - 支持自定义字符表
+
+## 实现细节
+
+1. TF-IDF向量化：
+   - 使用scikit-learn的TfidfVectorizer
+   - 支持n-gram特征
+   - 自动过滤低频词和高频词
+
+2. Word2Vec向量化：
+   - 使用gensim的Word2Vec模型
+   - 通过词向量平均获取文档向量
+   - 支持预训练模型导入
+
+3. 字符级向量化：
+   - 构建字符级的one-hot编码
+   - 使用稀疏矩阵存储
+   - 支持字符级n-gram
 
 ## 输入数据格式
-- 来源：`data/processed/cleaned_titles_{year}.csv`
-- 格式：参考预处理模块的输出格式规范
-- 必需字段：
-  - id: 论文ID
-  - title: 原始标题
-  - cleaned_tokens: 预处理后的分词结果（空格分隔）
-  - year: 论文年份
+
+来源：`data/processed/cleaned_titles_{year}.csv`
+必需字段：
+- id: 论文ID
+- title: 原始标题
+- cleaned_tokens: 预处理后的分词结果（空格分隔）
+- year: 论文年份
 
 ## 输出数据格式
 
@@ -61,15 +96,8 @@ VECTORIZATION_CONFIG = {
 }
 ```
 
-## 使用说明
+## 使用示例
 
-### 1. 直接运行
-最简单的方式是运行项目根目录下的脚本：
-```bash
-python run_vectorization.py
-```
-
-### 2. 在代码中使用
 ```python
 from src.vectorization.vectorizer import Vectorizer
 
@@ -81,53 +109,31 @@ vectorizer.process_file("data/processed/cleaned_titles_2024.csv")
 
 # 处理所有文件
 vectorizer.process_all()
-```
 
-### 3. 单独使用各种向量化方法
-```python
-# TF-IDF向量化
+# 单独使用各种向量化方法
 tfidf_vectors = vectorizer.fit_tfidf(texts)
-new_tfidf_vectors = vectorizer.transform_tfidf(new_texts)
-
-# Word2Vec向量化
 word2vec_vectors = vectorizer.fit_word2vec(tokenized_texts)
-new_word2vec_vectors = vectorizer.transform_word2vec(new_tokenized_texts)
-
-# 字符级向量化
 char_vectors = vectorizer.fit_char_vectors(texts)
-new_char_vectors = vectorizer.transform_char_vectors(new_texts)
 ```
 
 ## 注意事项
 
-1. **内存使用**
+1. 内存使用：
    - TF-IDF和字符级向量使用稀疏矩阵存储，节省内存
    - Word2Vec向量使用密集矩阵存储，需要更多内存
    - 处理大规模数据时注意监控内存使用
 
-2. **特征空间**
+2. 特征空间：
    - 所有年份的数据共享同一个特征空间
    - 更新特征空间后需要重新处理所有数据
    - 特征文件需要与向量文件一起保存
 
-3. **错误处理**
+3. 错误处理：
    - 输入文件格式错误会抛出 `VectorizationError`
    - 向量化器未训练就调用transform会抛出异常
    - 确保输入数据的完整性和格式正确性
 
-4. **性能优化**
+4. 性能优化：
    - 使用适当的 `max_features` 控制向量维度
    - 根据数据规模调整 `min_df` 和 `max_df`
    - 需要时可以使用降维技术减少向量维度
-
-## 开发计划
-
-1. **待实现功能**
-   - 支持增量训练
-   - 添加更多向量化方法
-   - 实现向量降维功能
-
-2. **优化方向**
-   - 提高大规模数据处理效率
-   - 优化内存使用
-   - 增强错误处理机制
