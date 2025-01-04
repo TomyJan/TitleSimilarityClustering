@@ -14,6 +14,7 @@ from sklearn.metrics import (
 )
 import matplotlib.pyplot as plt
 from src.config import CLUSTERING_CONFIG, PROCESSED_DATA_DIR, RESULTS_DIR
+from sklearn.cluster import DBSCAN
 
 class ClusteringError(Exception):
     """聚类分析错误的基类"""
@@ -22,14 +23,13 @@ class ClusteringError(Exception):
 class TitleClusterer:
     """聚类分析类"""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """初始化聚类器
-        
-        Args:
-            config: 聚类配置，如果为None则使用默认配置
-        """
-        self.config = config or CLUSTERING_CONFIG
+    def __init__(self):
+        """初始化聚类器"""
         self.logger = logging.getLogger(__name__)
+        # 修改聚类参数
+        self.n_clusters = 5  # 聚类数量
+        self.eps = 0.3  # DBSCAN的邻域半径
+        self.min_samples = 3  # DBSCAN的最小样本数
         
     def _load_vectors(self, year: int, method: str) -> np.ndarray:
         """加载向量数据
@@ -309,35 +309,71 @@ class TitleClusterer:
             raise 
             
     def cluster_all(self, years: List[int], output_dir: str) -> bool:
-        """对多个年份的数据进行聚类
+        """对所有年份的数据进行聚类
         
         Args:
-            years: 年份列表
+            years: 要处理的年份列表
             output_dir: 输出目录
             
         Returns:
-            是否成功
+            bool: 是否成功
         """
         try:
-            for year in years:
-                # 对每个向量化方法进行聚类
-                for method in ['tfidf', 'word2vec']:
-                    # 执行聚类
-                    labels, centers, metrics = self.cluster(year, method)
-                    
-                    # 保存结果
-                    self.save_results(year, method, labels, centers, metrics)
-                    
-                    # 可视化结果
-                    vectors = self._load_vectors(year, method)
-                    output_file = os.path.join(
-                        output_dir,
-                        f"cluster_visualization_{method}_{year}.png"
-                    )
-                    self.visualize_clusters(vectors, labels, output_file)
-                    
-            return True
+            # 创建聚类结果目录
+            clustering_dir = os.path.join('data', 'clustering')
+            os.makedirs(clustering_dir, exist_ok=True)
             
+            for year in years:
+                # 加载TF-IDF向量
+                tfidf_vectors = sparse.load_npz(os.path.join('data', 'vectorized', f'tfidf_vectors_{year}.npz'))
+                # 加载Word2Vec向量
+                word2vec_vectors = np.load(os.path.join('data', 'vectorized', f'word2vec_vectors_{year}.npy'))
+                
+                # 对TF-IDF向量进行聚类
+                tfidf_labels = self._cluster_vectors(tfidf_vectors.toarray())
+                np.save(os.path.join(clustering_dir, f'cluster_labels_tfidf_{year}.npy'), tfidf_labels)
+                
+                # 对Word2Vec向量进行聚类
+                word2vec_labels = self._cluster_vectors(word2vec_vectors)
+                np.save(os.path.join(clustering_dir, f'cluster_labels_word2vec_{year}.npy'), word2vec_labels)
+                
+                self.logger.info(f"{year}年聚类完成")
+            
+            return True
         except Exception as e:
-            self.logger.error(f"聚类分析时出错: {str(e)}")
+            self.logger.error(f"聚类过程出错: {str(e)}")
             return False 
+            
+    def _cluster_vectors(self, vectors: np.ndarray) -> np.ndarray:
+        """对向量进行聚类
+        
+        Args:
+            vectors: 要聚类的向量矩阵
+            
+        Returns:
+            np.ndarray: 聚类标签
+        """
+        try:
+            # 使用DBSCAN进行聚类
+            clustering = DBSCAN(eps=self.eps, min_samples=self.min_samples)
+            labels = clustering.fit_predict(vectors)
+            
+            # 如果所有样本都被判定为噪声点，则使用KMeans
+            if len(np.unique(labels)) <= 1:
+                # 根据数据量动态调整聚类数
+                n_samples = len(vectors)
+                self.n_clusters = min(self.n_clusters, n_samples // 5)  # 确保每个簇至少有5个样本
+                self.n_clusters = max(2, self.n_clusters)  # 确保至少有2个簇
+                
+                clustering = KMeans(n_clusters=self.n_clusters, random_state=42)
+                labels = clustering.fit_predict(vectors)
+            
+            # 确保标签数量与向量数量相同
+            if len(labels) != len(vectors):
+                self.logger.error(f"标签数量({len(labels)})与向量数量({len(vectors)})不匹配")
+                return np.zeros(len(vectors))
+            
+            return labels
+        except Exception as e:
+            self.logger.error(f"聚类过程出错: {str(e)}")
+            return np.zeros(len(vectors)) 

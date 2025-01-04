@@ -12,6 +12,8 @@ data/vectorized/*
 !data/vectorized/.gitkeep
 data/similarity/*
 !data/similarity/.gitkeep
+data/clustering/*
+!data/clustering/.gitkeep
 results/visualization/*
 !results/visualization/.gitkeep
 results/*
@@ -21,4 +23,3 @@ logs/*
 
 # Virtual Environment
 venv/
-env/ 
