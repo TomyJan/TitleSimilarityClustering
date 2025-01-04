@@ -406,3 +406,118 @@ class TitleVisualizer:
             success = False
             
         return success
+
+    def generate_analysis_report(self, years: List[int], output_dir: str) -> bool:
+        """生成可视化分析报告
+        
+        Args:
+            years: 要分析的年份列表
+            output_dir: 输出目录
+            
+        Returns:
+            bool: 是否成功生成报告
+        """
+        try:
+            report_path = os.path.join(output_dir, "visualization_analysis.md")
+            
+            with open(report_path, "w", encoding="utf-8") as f:
+                # 写入报告头部
+                f.write("# 论文标题相似度与聚类分析报告\n\n")
+                f.write(f"分析时间范围：{min(years)}-{max(years)}\n\n")
+                
+                # 相似度矩阵分析
+                f.write("## 1. 相似度矩阵分析\n\n")
+                f.write("### 1.1 整体相似度分布\n")
+                # 计算并写入相似度统计信息
+                similarity_stats = self._analyze_similarity_distribution(years)
+                f.write(f"- 平均相似度：{similarity_stats['mean']:.4f}\n")
+                f.write(f"- 最大相似度：{similarity_stats['max']:.4f}\n")
+                f.write(f"- 最小相似度：{similarity_stats['min']:.4f}\n")
+                f.write(f"- 标准差：{similarity_stats['std']:.4f}\n\n")
+                
+                # 聚类结果分析
+                f.write("## 2. 聚类结果分析\n\n")
+                f.write("### 2.1 聚类统计\n")
+                # 计算并写入聚类统计信息
+                cluster_stats = self._analyze_clustering_results(years)
+                for year in years:
+                    f.write(f"\n#### {year}年聚类结果\n")
+                    f.write(f"- 聚类数量：{cluster_stats[year]['n_clusters']}\n")
+                    f.write(f"- 最大簇大小：{cluster_stats[year]['max_cluster_size']}\n")
+                    f.write(f"- 最小簇大小：{cluster_stats[year]['min_cluster_size']}\n")
+                    f.write(f"- 平均簇大小：{cluster_stats[year]['avg_cluster_size']:.2f}\n")
+                    
+                # 研究趋势分析
+                f.write("\n## 3. 研究趋势分析\n\n")
+                trends = self._analyze_research_trends(years)
+                f.write("### 3.1 热点主题演变\n")
+                for year, topics in trends.items():
+                    f.write(f"\n#### {year}年热点主题\n")
+                    for topic in topics:
+                        f.write(f"- {topic}\n")
+                
+                # 建议与结论
+                f.write("\n## 4. 建议与结论\n\n")
+                f.write("### 4.1 研究方向建议\n")
+                f.write("- 根据聚类结果，建议关注以下新兴研究方向：\n")
+                f.write("  1. [待补充具体建议]\n")
+                f.write("  2. [待补充具体建议]\n\n")
+                
+                f.write("### 4.2 总体结论\n")
+                f.write("- [待补充总体结论]\n")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"生成分析报告时出错: {str(e)}")
+            return False
+
+    def _analyze_similarity_distribution(self, years: List[int]) -> Dict:
+        """分析相似度分布
+        
+        Args:
+            years: 要分析的年份列表
+            
+        Returns:
+            Dict: 相似度统计信息
+        """
+        # 这里需要实现具体的相似度分析逻辑
+        return {
+            'mean': 0.5,  # 示例值
+            'max': 0.9,
+            'min': 0.1,
+            'std': 0.2
+        }
+
+    def _analyze_clustering_results(self, years: List[int]) -> Dict:
+        """分析聚类结果
+        
+        Args:
+            years: 要分析的年份列表
+            
+        Returns:
+            Dict: 聚类统计信息
+        """
+        # 这里需要实现具体的聚类分析逻辑
+        return {
+            2020: {
+                'n_clusters': 10,
+                'max_cluster_size': 100,
+                'min_cluster_size': 10,
+                'avg_cluster_size': 50.0
+            }
+        }
+
+    def _analyze_research_trends(self, years: List[int]) -> Dict:
+        """分析研究趋势
+        
+        Args:
+            years: 要分析的年份列表
+            
+        Returns:
+            Dict: 研究趋势信息
+        """
+        # 这里需要实现具体的趋势分析逻辑
+        return {
+            2020: ['人工智能', '深度学习', '大数据']
+        }

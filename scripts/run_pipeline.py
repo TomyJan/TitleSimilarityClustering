@@ -186,6 +186,15 @@ def main() -> None:
             sys.exit(1)
         
         logger.info("可视化 执行完成")
+        
+        # 生成分析报告
+        logger.info("开始生成分析报告")
+        success = visualizer.generate_analysis_report(years, output_dir)
+        if not success:
+            logger.error("生成分析报告失败")
+            sys.exit(1)
+        logger.info("分析报告生成完成")
+        
         logger.info("流水线执行完成")
         
     except Exception as e:
