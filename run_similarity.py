@@ -1,9 +1,9 @@
-"""运行向量化的脚本"""
+"""运行相似度计算的脚本"""
 import os
 import logging
 from datetime import datetime
-from src.vectorization.vectorizer import Vectorizer
-from src.config import VECTORIZATION_CONFIG, PROCESSED_DATA_DIR
+from src.similarity.calculator import SimilarityCalculator
+from src.config import SIMILARITY_CONFIG, PROCESSED_DATA_DIR, RESULTS_DIR
 
 def setup_logging():
     """配置日志"""
@@ -11,12 +11,12 @@ def setup_logging():
     
     # 创建日志格式
     formatter = logging.Formatter(
-        '%(asctime)s - [%(levelname)s] %(name)s: %(message)s'
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
     # 配置文件处理器
     file_handler = logging.FileHandler(
-        os.path.join('logs', f'vectorization_{datetime.now():%Y%m%d_%H%M%S}.log'),
+        os.path.join('logs', f'similarity_{datetime.now():%Y%m%d_%H%M%S}.log'),
         encoding='utf-8'
     )
     file_handler.setFormatter(formatter)
@@ -58,21 +58,21 @@ def main():
             
         logger.info(f"找到以下年份的数据: {years}")
         
-        # 初始化向量化器
-        vectorizer = Vectorizer()
+        # 初始化计算器
+        calculator = SimilarityCalculator()
         
         # 处理所有年份
-        success = vectorizer.process_years(years)
+        success = calculator.process_years(years)
         
         if success:
-            logger.info("向量化处理完成")
+            logger.info("相似度计算完成")
             return True
         else:
-            logger.error("向量化处理失败")
+            logger.error("相似度计算失败")
             return False
             
     except Exception as e:
-        logger.error(f"处理过程中出错: {str(e)}")
+        logger.error(f"运行时出错: {str(e)}")
         return False
         
 if __name__ == '__main__':

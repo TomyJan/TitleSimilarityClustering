@@ -1,56 +1,104 @@
 # 相似度计算模块
 
-## 输入数据格式
-- 来源：
-  - `data/processed/tfidf_vectors_{year}.npz`
-  - `data/processed/word2vec_vectors_{year}.npy`
-  - `data/processed/cleaned_titles_{year}.csv`（用于编辑距离计算）
+## 模块说明
 
-## 输出数据格式
+相似度计算模块负责计算不同年份论文标题之间的相似度。该模块支持多种相似度计算方法，并提供了详细的统计信息。
 
-相似度计算结果将保存在 `results` 目录下。
+### 主要功能
 
-### 1. 余弦相似度矩阵
-文件名：`cosine_similarity_{method}_{year1}_{year2}.npz`
-- method: 可选 'tfidf' 或 'word2vec'
-- 使用 scipy.sparse.save_npz 保存的稀疏矩阵
-- 矩阵大小：[n_samples_year1, n_samples_year2]
-- 值域：[-1, 1]
+1. 支持多种相似度计算方法：
+   - TF-IDF 向量的余弦相似度
+   - Word2Vec 向量的余弦相似度
+   - 编辑距离相似度
 
-### 2. 编辑距离相似度矩阵
-文件名：`edit_distance_similarity_{year1}_{year2}.npz`
-- 使用 scipy.sparse.save_npz 保存的稀疏矩阵
-- 矩阵大小：[n_samples_year1, n_samples_year2]
-- 值域：[0, 1]（已归一化的相似度，1表示完全相同）
+2. 批量处理功能：
+   - 支持同一年份内的标题相似度计算
+   - 支持不同年份之间的标题相似度计算
+   - 自动处理所有可用年份的数据
 
-### 3. 相似度计算元数据
-文件名：`similarity_metadata_{year1}_{year2}.json`
+3. 结果统计与保存：
+   - 计算相似度矩阵的基本统计信息（形状、稀疏度、均值、标准差）
+   - 使用稀疏矩阵格式保存结果，节省存储空间
+   - 生成详细的元数据文件
 
-```json
-{
-    "cosine_similarity_tfidf": {
-        "shape": [n_samples_year1, n_samples_year2],
-        "sparsity": float,
-        "mean": float,
-        "std": float
-    },
-    "cosine_similarity_word2vec": {
-        "shape": [n_samples_year1, n_samples_year2],
-        "sparsity": float,
-        "mean": float,
-        "std": float
-    },
-    "edit_distance_similarity": {
-        "shape": [n_samples_year1, n_samples_year2],
-        "sparsity": float,
-        "mean": float,
-        "std": float
-    }
-}
+## 输入数据
+
+模块从 `data/processed` 目录读取以下文件：
+
+1. TF-IDF 向量：
+   - 文件格式：`tfidf_vectors_{year}.npz`
+   - 数据类型：scipy.sparse.csr_matrix
+
+2. Word2Vec 向量：
+   - 文件格式：`word2vec_vectors_{year}.npy`
+   - 数据类型：numpy.ndarray
+
+3. 原始标题数据（用于编辑距离计算）：
+   - 文件格式：`cleaned_titles_{year}.csv`
+   - 必需列：`id`, `title`
+
+## 输出结果
+
+模块将计算结果保存到 `results` 目录：
+
+1. 相似度矩阵：
+   - 余弦相似度：`cosine_similarity_{method}_{year1}_{year2}.npz`
+   - 编辑距离：`edit_distance_similarity_{year1}_{year2}.npz`
+   - 格式：scipy.sparse.csr_matrix
+
+2. 元数据文件：
+   - 文件名：`similarity_metadata_{year1}_{year2}.json`
+   - 包含内容：
+     - 矩阵形状
+     - 稀疏度
+     - 均值
+     - 标准差
+
+## 相似度阈值
+
+- 余弦相似度阈值：0.5（范围：[-1, 1]）
+- 编辑距离相似度阈值：0.7（范围：[0, 1]）
+
+低于阈值的相似度值会被设为 0，以减少存储空间并提高后续处理效率。
+
+## 性能优化
+
+1. 使用稀疏矩阵存储：
+   - 仅存储高于阈值的相似度值
+   - 显著减少存储空间需求
+   - 提高数据加载和处理速度
+
+2. 向量化计算：
+   - 使用 NumPy 和 SciPy 进行向量化计算
+   - 避免使用循环，提高计算效率
+
+3. 内存优化：
+   - 分批处理大规模数据
+   - 及时释放不需要的数据
+
+## 使用示例
+
+```python
+from src.similarity.calculator import SimilarityCalculator
+
+# 初始化计算器
+calculator = SimilarityCalculator()
+
+# 计算指定年份之间的相似度
+similarity_matrix, stats = calculator.calculate_similarity(
+    year1=2020,
+    year2=2021,
+    method='tfidf'  # 或 'word2vec', 'edit_distance'
+)
+
+# 批量处理多个年份
+years = [2020, 2021, 2022]
+success = calculator.process_years(years)
 ```
 
-### 数据要求
-- 相似度矩阵必须是对称的（当year1 = year2时）
-- 稀疏矩阵只保存相似度大于阈值的值（默认阈值：0.5）
-- 必须包含元数据文件，描述相似度矩阵的统计信息
-- 编辑距离相似度需要归一化到[0,1]区间
+## 注意事项
+
+1. 确保已运行向量化模块，生成所需的向量文件
+2. 不同年份的向量维度必须一致
+3. 处理大规模数据时注意内存使用
+4. 建议定期清理结果目录，避免占用过多存储空间

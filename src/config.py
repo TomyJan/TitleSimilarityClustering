@@ -28,7 +28,8 @@ VECTORIZATION_CONFIG = {
     "word2vec": {
         "vector_size": 100,
         "window": 5,
-        "min_count": 2
+        "min_count": 2,
+        "workers": 4
     }
 }
 

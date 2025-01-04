@@ -1,8 +1,8 @@
-"""文本向量化模块"""
+"""向量化模块"""
 import os
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -15,7 +15,7 @@ class VectorizationError(Exception):
     pass
 
 class Vectorizer:
-    """文本向量化类"""
+    """向量化类"""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """初始化向量化器
@@ -27,248 +27,294 @@ class Vectorizer:
         self.logger = logging.getLogger(__name__)
         self.tfidf_vectorizer = None
         self.word2vec_model = None
-        self.char_to_id = None
+        self.char_features = None
         
-    def _save_features(self, features: List[str], filename: str) -> None:
-        """保存特征列表
-        
-        Args:
-            features: 特征列表
-            filename: 保存的文件名
-        """
-        with open(os.path.join(PROCESSED_DATA_DIR, filename), 'w', encoding='utf-8') as f:
-            json.dump(features, f, ensure_ascii=False, indent=2)
-            
-    def _load_features(self, filename: str) -> List[str]:
-        """加载特征列表
+    def _load_titles(self, year: int) -> pd.DataFrame:
+        """加载标题数据
         
         Args:
-            filename: 特征文件名
+            year: 年份
             
         Returns:
-            特征列表
-        """
-        with open(os.path.join(PROCESSED_DATA_DIR, filename), 'r', encoding='utf-8') as f:
-            return json.load(f)
+            包含标题的DataFrame
             
-    def fit_tfidf(self, texts: List[str]) -> sparse.csr_matrix:
-        """训练TF-IDF向量化器并转换文本
+        Raises:
+            VectorizationError: 如果文件不存在或格式错误
+        """
+        try:
+            file_path = os.path.join(PROCESSED_DATA_DIR, f"cleaned_titles_{year}.csv")
+            df = pd.read_csv(file_path)
+            if not all(col in df.columns for col in ['id', 'title']):
+                raise VectorizationError(f"标题文件缺少必需的列: {file_path}")
+            return df
+        except Exception as e:
+            raise VectorizationError(f"加载标题文件时出错: {str(e)}")
+            
+    def _load_tokens(self, year: int) -> pd.DataFrame:
+        """加载分词数据
         
         Args:
-            texts: 文本列表
+            year: 年份
+            
+        Returns:
+            包含分词结果的DataFrame
+            
+        Raises:
+            VectorizationError: 如果文件不存在或格式错误
+        """
+        try:
+            file_path = os.path.join(PROCESSED_DATA_DIR, f"tokenized_titles_{year}.csv")
+            df = pd.read_csv(file_path)
+            if not all(col in df.columns for col in ['id', 'tokens']):
+                raise VectorizationError(f"分词文件缺少必需的列: {file_path}")
+            # 将字符串形式的tokens转换为列表
+            df['tokens'] = df['tokens'].str.split()
+            return df
+        except Exception as e:
+            raise VectorizationError(f"加载分词文件时出错: {str(e)}")
+            
+    def _get_all_tokens(self, years: List[int]) -> List[List[str]]:
+        """获取所有年份的分词结果
+        
+        Args:
+            years: 年份列表
+            
+        Returns:
+            所有分词结果的列表
+        """
+        all_tokens = []
+        for year in years:
+            df = self._load_tokens(year)
+            all_tokens.extend(df['tokens'].tolist())
+        return all_tokens
+        
+    def fit_tfidf(self, years: List[int]) -> None:
+        """训练TF-IDF向量化器
+        
+        Args:
+            years: 年份列表
+        """
+        try:
+            # 获取所有年份的分词结果
+            all_tokens = self._get_all_tokens(years)
+            
+            # 将分词列表转换为文本
+            texts = [' '.join(tokens) for tokens in all_tokens]
+            
+            # 创建并训练TF-IDF向量化器
+            self.tfidf_vectorizer = TfidfVectorizer(
+                min_df=self.config['tfidf']['min_df'],
+                max_df=self.config['tfidf']['max_df']
+            )
+            self.tfidf_vectorizer.fit(texts)
+            
+            # 保存特征名称
+            features_file = os.path.join(PROCESSED_DATA_DIR, 'tfidf_features.json')
+            with open(features_file, 'w', encoding='utf-8') as f:
+                json.dump(
+                    {
+                        'features': list(self.tfidf_vectorizer.get_feature_names_out()),
+                        'vocabulary_size': len(self.tfidf_vectorizer.vocabulary_)
+                    },
+                    f,
+                    ensure_ascii=False,
+                    indent=2
+                )
+                
+        except Exception as e:
+            raise VectorizationError(f"训练TF-IDF向量化器时出错: {str(e)}")
+            
+    def fit_word2vec(self, years: List[int]) -> None:
+        """训练Word2Vec模型
+        
+        Args:
+            years: 年份列表
+        """
+        try:
+            # 获取所有年份的分词结果
+            all_tokens = self._get_all_tokens(years)
+            
+            # 训练Word2Vec模型
+            self.word2vec_model = Word2Vec(
+                sentences=all_tokens,
+                vector_size=self.config['word2vec']['vector_size'],
+                window=self.config['word2vec']['window'],
+                min_count=self.config['word2vec']['min_count'],
+                workers=self.config['word2vec']['workers']
+            )
+            
+            # 保存模型
+            model_file = os.path.join(PROCESSED_DATA_DIR, 'word2vec_model.bin')
+            self.word2vec_model.save(model_file)
+            
+        except Exception as e:
+            raise VectorizationError(f"训练Word2Vec模型时出错: {str(e)}")
+            
+    def fit_char_vectors(self, years: List[int]) -> None:
+        """创建字符级特征
+        
+        Args:
+            years: 年份列表
+        """
+        try:
+            # 获取所有年份的标题
+            all_titles = []
+            for year in years:
+                df = self._load_titles(year)
+                all_titles.extend(df['title'].tolist())
+                
+            # 获取所有唯一字符
+            chars = sorted(list(set(''.join(all_titles))))
+            self.char_features = {char: i for i, char in enumerate(chars)}
+            
+            # 保存特征
+            features_file = os.path.join(PROCESSED_DATA_DIR, 'char_features.json')
+            with open(features_file, 'w', encoding='utf-8') as f:
+                json.dump(
+                    {
+                        'features': self.char_features,
+                        'vocabulary_size': len(chars)
+                    },
+                    f,
+                    ensure_ascii=False,
+                    indent=2
+                )
+                
+        except Exception as e:
+            raise VectorizationError(f"创建字符级特征时出错: {str(e)}")
+            
+    def transform_tfidf(self, year: int) -> sparse.csr_matrix:
+        """将指定年份的数据转换为TF-IDF向量
+        
+        Args:
+            year: 年份
             
         Returns:
             TF-IDF向量矩阵
         """
-        self.tfidf_vectorizer = TfidfVectorizer(
-            max_features=self.config['tfidf']['max_features'],
-            min_df=self.config['tfidf']['min_df'],
-            max_df=self.config['tfidf']['max_df']
-        )
-        vectors = self.tfidf_vectorizer.fit_transform(texts)
-        self._save_features(
-            self.tfidf_vectorizer.get_feature_names_out().tolist(),
-            'tfidf_features.json'
-        )
-        return vectors
-        
-    def transform_tfidf(self, texts: List[str]) -> sparse.csr_matrix:
-        """使用已训练的TF-IDF向量化器转换文本
+        try:
+            if self.tfidf_vectorizer is None:
+                raise VectorizationError("TF-IDF向量化器未训练")
+                
+            # 加载分词数据
+            df = self._load_tokens(year)
+            texts = [' '.join(tokens) for tokens in df['tokens']]
+            
+            # 转换为TF-IDF向量
+            vectors = self.tfidf_vectorizer.transform(texts)
+            
+            # 保存向量
+            output_file = os.path.join(PROCESSED_DATA_DIR, f"tfidf_vectors_{year}.npz")
+            sparse.save_npz(output_file, vectors)
+            
+            return vectors
+            
+        except Exception as e:
+            raise VectorizationError(f"转换TF-IDF向量时出错: {str(e)}")
+            
+    def transform_word2vec(self, year: int) -> np.ndarray:
+        """将指定年份的数据转换为Word2Vec向量
         
         Args:
-            texts: 文本列表
-            
-        Returns:
-            TF-IDF向量矩阵
-            
-        Raises:
-            VectorizationError: 如果向量化器未训练
-        """
-        if self.tfidf_vectorizer is None:
-            raise VectorizationError("TF-IDF向量化器未训练")
-        return self.tfidf_vectorizer.transform(texts)
-        
-    def fit_word2vec(self, tokenized_texts: List[List[str]]) -> np.ndarray:
-        """训练Word2Vec模型并转换文本
-        
-        Args:
-            tokenized_texts: 分词后的文本列表
+            year: 年份
             
         Returns:
             Word2Vec向量矩阵
         """
-        self.word2vec_model = Word2Vec(
-            sentences=tokenized_texts,
-            vector_size=self.config['word2vec']['vector_size'],
-            window=self.config['word2vec']['window'],
-            min_count=self.config['word2vec']['min_count']
-        )
-        self.word2vec_model.save(os.path.join(PROCESSED_DATA_DIR, 'word2vec_model.bin'))
-        
-        # 计算每个文本的平均词向量
-        vectors = np.zeros((len(tokenized_texts), self.config['word2vec']['vector_size']))
-        for i, tokens in enumerate(tokenized_texts):
-            token_vectors = []
-            for token in tokens:
-                if token in self.word2vec_model.wv:
-                    token_vectors.append(self.word2vec_model.wv[token])
-            if token_vectors:
-                vectors[i] = np.mean(token_vectors, axis=0)
-        return vectors
-        
-    def transform_word2vec(self, tokenized_texts: List[List[str]]) -> np.ndarray:
-        """使用已训练的Word2Vec模型转换文本
+        try:
+            if self.word2vec_model is None:
+                raise VectorizationError("Word2Vec模型未训练")
+                
+            # 加载分词数据
+            df = self._load_tokens(year)
+            
+            # 计算每个标题的平均词向量
+            vectors = []
+            for tokens in df['tokens']:
+                token_vectors = []
+                for token in tokens:
+                    if token in self.word2vec_model.wv:
+                        token_vectors.append(self.word2vec_model.wv[token])
+                if token_vectors:
+                    vectors.append(np.mean(token_vectors, axis=0))
+                else:
+                    vectors.append(np.zeros(self.config['word2vec']['vector_size']))
+                    
+            vectors = np.array(vectors)
+            
+            # 保存向量
+            output_file = os.path.join(PROCESSED_DATA_DIR, f"word2vec_vectors_{year}.npy")
+            np.save(output_file, vectors)
+            
+            return vectors
+            
+        except Exception as e:
+            raise VectorizationError(f"转换Word2Vec向量时出错: {str(e)}")
+            
+    def transform_char_vectors(self, year: int) -> sparse.csr_matrix:
+        """将指定年份的数据转换为字符级向量
         
         Args:
-            tokenized_texts: 分词后的文本列表
+            year: 年份
             
         Returns:
-            Word2Vec向量矩阵
-            
-        Raises:
-            VectorizationError: 如果模型未训练
+            字符级向量矩阵
         """
-        if self.word2vec_model is None:
-            raise VectorizationError("Word2Vec模型未训练")
+        try:
+            if self.char_features is None:
+                raise VectorizationError("字符级特征未创建")
+                
+            # 加载标题数据
+            df = self._load_titles(year)
             
-        vectors = np.zeros((len(tokenized_texts), self.config['word2vec']['vector_size']))
-        for i, tokens in enumerate(tokenized_texts):
-            token_vectors = []
-            for token in tokens:
-                if token in self.word2vec_model.wv:
-                    token_vectors.append(self.word2vec_model.wv[token])
-            if token_vectors:
-                vectors[i] = np.mean(token_vectors, axis=0)
-        return vectors
-        
-    def fit_char_vectors(self, texts: List[str]) -> sparse.csr_matrix:
-        """训练字符级向量化器并转换文本
+            # 创建稀疏矩阵
+            rows, cols, data = [], [], []
+            for i, title in enumerate(df['title']):
+                for char in title:
+                    if char in self.char_features:
+                        rows.append(i)
+                        cols.append(self.char_features[char])
+                        data.append(1)
+                        
+            vectors = sparse.csr_matrix(
+                (data, (rows, cols)),
+                shape=(len(df), len(self.char_features))
+            )
+            
+            # 保存向量
+            output_file = os.path.join(PROCESSED_DATA_DIR, f"char_vectors_{year}.npz")
+            sparse.save_npz(output_file, vectors)
+            
+            return vectors
+            
+        except Exception as e:
+            raise VectorizationError(f"转换字符级向量时出错: {str(e)}")
+            
+    def process_years(self, years: List[int]) -> bool:
+        """处理多个年份的数据
         
         Args:
-            texts: 文本列表
-            
-        Returns:
-            字符级one-hot编码矩阵
-        """
-        # 构建字符映射
-        chars = set()
-        for text in texts:
-            chars.update(text)
-        self.char_to_id = {char: i for i, char in enumerate(sorted(chars))}
-        self._save_features(
-            list(self.char_to_id.keys()),
-            'char_features.json'
-        )
-        
-        # 转换为one-hot编码
-        rows, cols, data = [], [], []
-        for i, text in enumerate(texts):
-            for char in text:
-                if char in self.char_to_id:
-                    rows.append(i)
-                    cols.append(self.char_to_id[char])
-                    data.append(1)
-        
-        return sparse.csr_matrix(
-            (data, (rows, cols)),
-            shape=(len(texts), len(self.char_to_id))
-        )
-        
-    def transform_char_vectors(self, texts: List[str]) -> sparse.csr_matrix:
-        """使用已训练的字符级向量化器转换文本
-        
-        Args:
-            texts: 文本列表
-            
-        Returns:
-            字符级one-hot编码矩阵
-            
-        Raises:
-            VectorizationError: 如果向量化器未训练
-        """
-        if self.char_to_id is None:
-            raise VectorizationError("字符级向量化器未训练")
-            
-        rows, cols, data = [], [], []
-        for i, text in enumerate(texts):
-            for char in text:
-                if char in self.char_to_id:
-                    rows.append(i)
-                    cols.append(self.char_to_id[char])
-                    data.append(1)
-        
-        return sparse.csr_matrix(
-            (data, (rows, cols)),
-            shape=(len(texts), len(self.char_to_id))
-        )
-        
-    def process_file(self, input_path: str) -> bool:
-        """处理单个文件
-        
-        Args:
-            input_path: 输入文件路径
+            years: 年份列表
             
         Returns:
             处理是否成功
         """
         try:
-            # 读取数据
-            df = pd.read_csv(input_path)
-            if 'cleaned_tokens' not in df.columns:
-                raise VectorizationError(f"输入文件缺少cleaned_tokens列: {input_path}")
+            # 训练向量化器和模型
+            self.logger.info("开始训练向量化器和模型...")
+            self.fit_tfidf(years)
+            self.fit_word2vec(years)
+            self.fit_char_vectors(years)
+            
+            # 转换每个年份的数据
+            for year in years:
+                self.logger.info(f"正在处理 {year} 年的数据...")
+                self.transform_tfidf(year)
+                self.transform_word2vec(year)
+                self.transform_char_vectors(year)
                 
-            year = df['year'].iloc[0]
-            texts = df['cleaned_tokens'].tolist()
-            tokenized_texts = [text.split() for text in texts]
-            
-            # TF-IDF向量化
-            self.logger.info("正在进行TF-IDF向量化...")
-            tfidf_vectors = self.fit_tfidf(texts)
-            sparse.save_npz(
-                os.path.join(PROCESSED_DATA_DIR, f"tfidf_vectors_{year}.npz"),
-                tfidf_vectors
-            )
-            
-            # Word2Vec向量化
-            self.logger.info("正在进行Word2Vec向量化...")
-            word2vec_vectors = self.fit_word2vec(tokenized_texts)
-            np.save(
-                os.path.join(PROCESSED_DATA_DIR, f"word2vec_vectors_{year}.npy"),
-                word2vec_vectors
-            )
-            
-            # 字符级向量化
-            self.logger.info("正在进行字符级向量化...")
-            char_vectors = self.fit_char_vectors(df['title'].tolist())
-            sparse.save_npz(
-                os.path.join(PROCESSED_DATA_DIR, f"char_vectors_{year}.npz"),
-                char_vectors
-            )
-            
             return True
             
         except Exception as e:
-            self.logger.error(f"处理文件时出错: {str(e)}")
+            self.logger.error(f"处理年份数据时出错: {str(e)}")
             raise
-            
-    def process_all(self, input_dir: str = str(PROCESSED_DATA_DIR)) -> bool:
-        """处理目录下的所有文件
-        
-        Args:
-            input_dir: 输入目录
-            
-        Returns:
-            处理是否成功
-        """
-        try:
-            success = True
-            for filename in os.listdir(input_dir):
-                if filename.startswith('cleaned_titles_') and filename.endswith('.csv'):
-                    input_path = os.path.join(input_dir, filename)
-                    self.logger.info(f"正在处理文件: {filename}")
-                    if not self.process_file(input_path):
-                        success = False
-            return success
-        except Exception as e:
-            self.logger.error(f"批量处理文件时出错: {str(e)}")
-            raise 

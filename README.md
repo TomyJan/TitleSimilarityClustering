@@ -256,3 +256,27 @@ TitleSimilarityClustering/
    2. 检查生成的向量文件大小是否合理
    3. 验证特征文件的完整性
    4. 注意内存使用，特别是处理大规模数据时
+
+### 相似度计算
+
+运行相似度计算脚本：
+```bash
+python run_similarity.py
+```
+
+相似度计算说明：
+1. 支持三种计算方法：
+   - TF-IDF向量的余弦相似度
+   - Word2Vec向量的余弦相似度
+   - 编辑距离相似度
+
+2. 输出文件：
+   - 相似度矩阵：`results/cosine_similarity_{method}_{year1}_{year2}.npz`
+   - 编辑距离：`results/edit_distance_similarity_{year1}_{year2}.npz`
+   - 统计信息：`results/similarity_metadata_{year1}_{year2}.json`
+
+3. 注意事项：
+   - 确保已完成向量化处理
+   - 结果使用稀疏矩阵存储，节省空间
+   - 自动处理所有年份组合
+   - 可通过配置文件调整相似度阈值
