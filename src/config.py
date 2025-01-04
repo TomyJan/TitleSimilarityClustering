@@ -85,6 +85,29 @@ CLUSTERING_CONFIG = {
     }
 }
 
+# 可视化配置
+VISUALIZATION_CONFIG = {
+    'heatmap': {
+        'figsize': (12, 10),
+        'cmap': 'YlOrRd',
+        'dpi': 300
+    },
+    'distribution': {
+        'figsize': (10, 6),
+        'bins': 50,
+        'dpi': 300
+    },
+    'scatter': {
+        'figsize': (12, 8),
+        'random_state': 42,
+        'dpi': 300
+    },
+    'sizes': {
+        'figsize': (10, 6),
+        'dpi': 300
+    }
+}
+
 # 日志配置
 LOGGING_CONFIG = {
     "version": 1,

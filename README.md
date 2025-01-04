@@ -290,6 +290,42 @@ python run_clustering.py
 
 聚类分析模块会对向量化后的标题进行聚类分析，生成聚类结果和可视化。
 
+### 可视化分析
+
+1. 运行可视化脚本：
+```bash
+python run_visualization.py
+```
+
+可视化模块提供以下功能：
+
+1. 相似度可视化
+   - 相似度热力图：直观展示标题间的相似度分布
+   - 相似度分布图：展示相似度值的统计分布
+   - 输出文件：
+     - `results/visualizations/similarity_heatmap_{method}_{year1}_{year2}.png`
+     - `results/visualizations/similarity_distribution_{method}_{year1}_{year2}.png`
+
+2. 聚类可视化
+   - 聚类散点图：使用t-SNE降维展示聚类结果
+   - 聚类大小分布图：展示各个簇的大小分布
+   - 输出文件：
+     - `results/visualizations/cluster_scatter_{method}_{year}.png`
+     - `results/visualizations/cluster_sizes_{method}_{year}.png`
+
+可视化配置：
+1. 通过 `src/config.py` 中的 `VISUALIZATION_CONFIG` 配置：
+   - 图像大小
+   - 颜色方案
+   - DPI设置
+   - 分箱数量等参数
+
+注意事项：
+1. 确保已完成相似度计算和聚类分析
+2. 大规模数据可视化时注意内存使用
+3. 建议使用高DPI设置以获得高质量图像
+4. 处理大量数据时可能需要较长时间
+
 ## 配置说明
 
 所有配置参数都集中在 `src/config.py` 文件中：
