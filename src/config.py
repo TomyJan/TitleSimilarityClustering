@@ -37,13 +37,13 @@ VECTORIZATION_CONFIG = {
 SIMILARITY_CONFIG = {
     "methods": ["tfidf", "word2vec", "edit_distance"],
     "thresholds": {
-        "cosine": 0.5,  # 余弦相似度阈值
-        "edit_distance": 0.7  # 编辑距离相似度阈值
+        "cosine": 0.5,  # 降低余弦相似度阈值，以获得更多匹配
+        "edit_distance": 0.6  # 保持编辑距离相似度阈值不变
     },
     "output_format": {
         "cosine": {
             "file_pattern": "cosine_similarity_{method}_{year1}_{year2}.npz",
-            "value_range": [-1, 1]  # 余弦相似度范围
+            "value_range": [0, 1]  # 保持[0,1]范围
         },
         "edit_distance": {
             "file_pattern": "edit_distance_similarity_{year1}_{year2}.npz",

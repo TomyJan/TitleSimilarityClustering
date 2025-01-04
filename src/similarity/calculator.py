@@ -111,6 +111,10 @@ class SimilarityCalculator:
         # 计算相似度矩阵
         similarity = np.dot(vectors1_normalized, vectors2_normalized.T)
         
+        # 对于Word2Vec向量，进行额外的归一化
+        if vectors1.shape[1] == 300:  # Word2Vec向量维度通常为300
+            similarity = (similarity + 1) / 2  # 将[-1,1]映射到[0,1]
+        
         # 应用阈值，转换为稀疏矩阵
         similarity[similarity < threshold] = 0
         return sparse.csr_matrix(similarity)
@@ -138,12 +142,13 @@ class SimilarityCalculator:
             for j, title2 in enumerate(titles2):
                 # 计算编辑距离
                 edit_dist = levenshtein_distance(title1, title2)
-                # 归一化到[0,1]区间，1表示完全相同
-                max_len = max(len(title1), len(title2))
-                if max_len == 0:
+                # 使用更合理的归一化方式
+                total_len = len(title1) + len(title2)
+                if total_len == 0:
                     similarity = 1.0
                 else:
-                    similarity = 1.0 - edit_dist / max_len
+                    # 使用两倍编辑距离除以总长度，确保相似度在[0,1]区间
+                    similarity = 1.0 - (2.0 * edit_dist) / total_len
                     
                 # 应用阈值
                 if similarity >= threshold:

@@ -181,9 +181,9 @@ TitleSimilarityClustering/
 ### 数据预处理
 
 1. 运行预处理脚本：
-   ```bash
-   python run_preprocessor.py
-   ```
+```bash
+python run_preprocessor.py
+```
 
 预处理步骤说明：
 1. 分词处理
@@ -221,41 +221,41 @@ TitleSimilarityClustering/
 ### 文本向量化
 
 1. 运行向量化脚本：
-   ```bash
-   python run_vectorization.py
-   ```
+```bash
+python run_vectorization.py
+```
 
-   向量化处理会对2020-2024年的所有数据进行处理，生成三种不同的向量表示：
-   - TF-IDF向量 (`data/processed/tfidf_vectors_{year}.npz`)
-   - Word2Vec向量 (`data/processed/word2vec_vectors_{year}.npy`)
-   - 字符级向量 (`data/processed/char_vectors_{year}.npz`)
-   
-   同时会生成相应的特征文件：
-   - TF-IDF特征词表 (`data/processed/tfidf_features.json`)
-   - Word2Vec模型 (`data/processed/word2vec_model.bin`)
-   - 字符映射表 (`data/processed/char_features.json`)
+向量化处理会对2020-2024年的所有数据进行处理，生成三种不同的向量表示：
+- TF-IDF向量 (`data/processed/tfidf_vectors_{year}.npz`)
+- Word2Vec向量 (`data/processed/word2vec_vectors_{year}.npy`)
+- 字符级向量 (`data/processed/char_vectors_{year}.npz`)
 
-   向量化原理：
-   1. TF-IDF向量化
-      - 计算词频(TF)和逆文档频率(IDF)
-      - 使用稀疏矩阵存储高维向量
-      - 通过配置控制特征词数量
+同时会生成相应的特征文件：
+- TF-IDF特征词表 (`data/processed/tfidf_features.json`)
+- Word2Vec模型 (`data/processed/word2vec_model.bin`)
+- 字符映射表 (`data/processed/char_features.json`)
 
-   2. Word2Vec向量化
-      - 训练词向量模型捕捉语义关系
-      - 通过平均词向量得到文档向量
-      - 使用密集矩阵存储低维向量
+向量化原理：
+1. TF-IDF向量化
+   - 计算词频(TF)和逆文档频率(IDF)
+   - 使用稀疏矩阵存储高维向量
+   - 通过配置控制特征词数量
 
-   3. 字符级向量化
-      - 构建字符级的one-hot编码
-      - 保持文本的字符级特征
-      - 使用稀疏矩阵存储高维向量
+2. Word2Vec向量化
+   - 训练词向量模型捕捉语义关系
+   - 通过平均词向量得到文档向量
+   - 使用密集矩阵存储低维向量
 
-   注意事项：
-   1. 确保已完成数据预处理步骤
-   2. 检查生成的向量文件大小是否合理
-   3. 验证特征文件的完整性
-   4. 注意内存使用，特别是处理大规模数据时
+3. 字符级向量化
+   - 构建字符级的one-hot编码
+   - 保持文本的字符级特征
+   - 使用稀疏矩阵存储高维向量
+
+注意事项：
+1. 确保已完成数据预处理步骤
+2. 检查生成的向量文件大小是否合理
+3. 验证特征文件的完整性
+4. 注意内存使用，特别是处理大规模数据时
 
 ### 相似度计算
 
@@ -266,9 +266,9 @@ python run_similarity.py
 
 相似度计算说明：
 1. 支持三种计算方法：
-   - TF-IDF向量的余弦相似度
-   - Word2Vec向量的余弦相似度
-   - 编辑距离相似度
+   - TF-IDF余弦相似度：基于词频-逆文档频率的文本相似度
+   - Word2Vec余弦相似度：基于词向量的语义相似度
+   - 编辑距离相似度：基于字符级别的文本相似度
 
 2. 输出文件：
    - 相似度矩阵：`results/cosine_similarity_{method}_{year1}_{year2}.npz`
@@ -280,3 +280,69 @@ python run_similarity.py
    - 结果使用稀疏矩阵存储，节省空间
    - 自动处理所有年份组合
    - 可通过配置文件调整相似度阈值
+
+### 聚类分析
+
+运行聚类分析脚本：
+```bash
+python run_clustering.py
+```
+
+聚类分析模块会对向量化后的标题进行聚类分析，生成聚类结果和可视化。
+
+## 配置说明
+
+所有配置参数都集中在 `src/config.py` 文件中：
+
+1. 数据目录配置：
+   - `RAW_DATA_DIR`：原始数据目录
+   - `PROCESSED_DATA_DIR`：处理后数据目录
+   - `RESULTS_DIR`：结果输出目录
+
+2. 预处理配置：
+   - 停用词列表
+   - 标题长度限制
+   - 支持的语言
+
+3. 向量化配置：
+   - TF-IDF参数：特征数量、文档频率范围
+   - Word2Vec参数：向量维度、窗口大小、最小词频
+
+4. 相似度计算配置：
+   - 支持的计算方法
+   - 相似度阈值设置
+   - 输出格式配置
+
+5. 聚类配置：
+   - 聚类算法参数
+   - 评估指标设置
+   - 可视化配置
+
+## 输出结果说明
+
+1. 预处理结果：
+   - `cleaned_titles_{year}.csv`：清洗后的标题
+   - `tokenized_titles_{year}.csv`：分词后的标题
+
+2. 向量化结果：
+   - `tfidf_vectors_{year}.npz`：TF-IDF向量
+   - `word2vec_vectors_{year}.npy`：Word2Vec向量
+   - `word2vec_model.bin`：训练好的Word2Vec模型
+
+3. 相似度计算结果：
+   - 相似度矩阵文件
+   - 元数据文件（包含统计信息）
+
+4. 聚类结果：
+   - 聚类标签文件
+   - 聚类中心文件
+   - 评估指标文件
+   - 可视化图表
+
+## 注意事项
+
+1. 运行顺序：必须按照预处理 -> 向量化 -> 相似度计算/聚类分析的顺序执行
+2. 内存使用：处理大规模数据时注意内存占用
+3. 存储空间：定期清理不需要的中间结果文件
+4. 配置调整：可以根据具体需求调整配置参数
+5. 日志查看：运行日志保存在 `logs` 目录下
