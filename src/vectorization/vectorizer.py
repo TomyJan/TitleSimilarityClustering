@@ -1,115 +1,58 @@
-"""文本向量化实现"""
+"""文本向量化模块"""
 import os
 import json
 import logging
+from typing import List, Dict, Any, Optional
 import numpy as np
-from scipy import sparse
-from typing import List, Dict, Optional, Union
-from abc import ABC, abstractmethod
 import pandas as pd
+from scipy import sparse
 from sklearn.feature_extraction.text import TfidfVectorizer
 from gensim.models import Word2Vec
-from .config import (
-    INPUT_DIR, OUTPUT_DIR,
-    TFIDF_CONFIG, WORD2VEC_CONFIG, CHAR_CONFIG,
-    COMMON_CONFIG
-)
+from src.config import VECTORIZATION_CONFIG, PROCESSED_DATA_DIR
 
-logger = logging.getLogger(__name__)
+class VectorizationError(Exception):
+    """向量化错误的基类"""
+    pass
 
-class BaseVectorizer(ABC):
-    """向量化器基类"""
+class Vectorizer:
+    """文本向量化类"""
     
-    def __init__(self, config: Dict):
-        """初始化
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """初始化向量化器
         
         Args:
-            config: 配置字典
+            config: 向量化配置，如果为None则使用默认配置
         """
-        self.config = config
-        self.model = None
+        self.config = config or VECTORIZATION_CONFIG
+        self.logger = logging.getLogger(__name__)
+        self.tfidf_vectorizer = None
+        self.word2vec_model = None
+        self.char_to_id = None
         
-    @abstractmethod
-    def fit(self, texts: List[str]) -> None:
-        """训练向量化模型
+    def _save_features(self, features: List[str], filename: str) -> None:
+        """保存特征列表
         
         Args:
-            texts: 文本列表
+            features: 特征列表
+            filename: 保存的文件名
         """
-        pass
-        
-    @abstractmethod
-    def transform(self, texts: List[str]) -> Union[np.ndarray, sparse.csr_matrix]:
-        """将文本转换为向量
+        with open(os.path.join(PROCESSED_DATA_DIR, filename), 'w', encoding='utf-8') as f:
+            json.dump(features, f, ensure_ascii=False, indent=2)
+            
+    def _load_features(self, filename: str) -> List[str]:
+        """加载特征列表
         
         Args:
-            texts: 文本列表
+            filename: 特征文件名
             
         Returns:
-            文本向量
+            特征列表
         """
-        pass
-        
-    def fit_transform(self, texts: List[str]) -> Union[np.ndarray, sparse.csr_matrix]:
-        """训练并转换
-        
-        Args:
-            texts: 文本列表
+        with open(os.path.join(PROCESSED_DATA_DIR, filename), 'r', encoding='utf-8') as f:
+            return json.load(f)
             
-        Returns:
-            文本向量
-        """
-        self.fit(texts)
-        return self.transform(texts)
-        
-    @abstractmethod
-    def save(self, output_dir: str) -> None:
-        """保存模型和相关文件
-        
-        Args:
-            output_dir: 输出目录
-        """
-        pass
-        
-    @abstractmethod
-    def load(self, model_dir: str) -> None:
-        """加载模型和相关文件
-        
-        Args:
-            model_dir: 模型目录
-        """
-        pass
-
-class TfidfVectorizer(BaseVectorizer):
-    """TF-IDF向量化器"""
-    
-    def __init__(self, config: Dict = TFIDF_CONFIG):
-        """初始化
-        
-        Args:
-            config: TF-IDF配置
-        """
-        super().__init__(config)
-        self.vectorizer = TfidfVectorizer(
-            max_features=config['max_features'],
-            min_df=config['min_df'],
-            max_df=config['max_df'],
-            binary=config['binary'],
-            norm=config['norm']
-        )
-        
-    def fit(self, texts: List[str]) -> None:
-        """训练TF-IDF模型
-        
-        Args:
-            texts: 文本列表
-        """
-        logger.info("开始训练TF-IDF模型...")
-        self.vectorizer.fit(texts)
-        logger.info(f"TF-IDF模型训练完成，特征维度: {len(self.vectorizer.get_feature_names_out())}")
-        
-    def transform(self, texts: List[str]) -> sparse.csr_matrix:
-        """将文本转换为TF-IDF向量
+    def fit_tfidf(self, texts: List[str]) -> sparse.csr_matrix:
+        """训练TF-IDF向量化器并转换文本
         
         Args:
             texts: 文本列表
@@ -117,70 +60,153 @@ class TfidfVectorizer(BaseVectorizer):
         Returns:
             TF-IDF向量矩阵
         """
-        return self.vectorizer.transform(texts)
-        
-    def save(self, output_dir: str) -> None:
-        """保存TF-IDF模型和特征词列表
-        
-        Args:
-            output_dir: 输出目录
-        """
-        # 保存特征词列表
-        features_path = os.path.join(output_dir, self.config['features_file'])
-        features = self.vectorizer.get_feature_names_out().tolist()
-        os.makedirs(output_dir, exist_ok=True)
-        
-        with open(features_path, 'w', encoding='utf-8') as f:
-            json.dump(features, f, ensure_ascii=False, indent=2)
-        logger.info(f"特征词列表已保存至: {features_path}")
-        
-    def load(self, model_dir: str) -> None:
-        """加载TF-IDF模型和特征词列表
-        
-        Args:
-            model_dir: 模型目录
-        """
-        # 加载特征词列表
-        features_path = os.path.join(model_dir, self.config['features_file'])
-        if not os.path.exists(features_path):
-            raise FileNotFoundError(f"特征词列表文件不存在: {features_path}")
-            
-        with open(features_path, 'r', encoding='utf-8') as f:
-            features = json.load(f)
-            
-        # 重新构建向量化器
-        self.vectorizer = TfidfVectorizer(
-            vocabulary=features,
-            max_features=self.config['max_features'],
-            min_df=self.config['min_df'],
-            max_df=self.config['max_df'],
-            binary=self.config['binary'],
-            norm=self.config['norm']
+        self.tfidf_vectorizer = TfidfVectorizer(
+            max_features=self.config['tfidf']['max_features'],
+            min_df=self.config['tfidf']['min_df'],
+            max_df=self.config['tfidf']['max_df']
         )
-        logger.info(f"已加载特征词列表，特征维度: {len(features)}")
+        vectors = self.tfidf_vectorizer.fit_transform(texts)
+        self._save_features(
+            self.tfidf_vectorizer.get_feature_names_out().tolist(),
+            'tfidf_features.json'
+        )
+        return vectors
         
-    def save_vectors(self, vectors: sparse.csr_matrix, year: int, output_dir: str) -> None:
-        """保存向量化结果
+    def transform_tfidf(self, texts: List[str]) -> sparse.csr_matrix:
+        """使用已训练的TF-IDF向量化器转换文本
         
         Args:
-            vectors: 向量矩阵
-            year: 年份
-            output_dir: 输出目录
+            texts: 文本列表
+            
+        Returns:
+            TF-IDF向量矩阵
+            
+        Raises:
+            VectorizationError: 如果向量化器未训练
         """
-        output_path = os.path.join(
-            output_dir,
-            f"{self.config['output_prefix']}{year}.npz"
-        )
-        os.makedirs(output_dir, exist_ok=True)
-        sparse.save_npz(output_path, vectors)
-        logger.info(f"向量已保存至: {output_path}")
+        if self.tfidf_vectorizer is None:
+            raise VectorizationError("TF-IDF向量化器未训练")
+        return self.tfidf_vectorizer.transform(texts)
         
-    def process_file(self, input_path: str, output_dir: str) -> bool:
+    def fit_word2vec(self, tokenized_texts: List[List[str]]) -> np.ndarray:
+        """训练Word2Vec模型并转换文本
+        
+        Args:
+            tokenized_texts: 分词后的文本列表
+            
+        Returns:
+            Word2Vec向量矩阵
+        """
+        self.word2vec_model = Word2Vec(
+            sentences=tokenized_texts,
+            vector_size=self.config['word2vec']['vector_size'],
+            window=self.config['word2vec']['window'],
+            min_count=self.config['word2vec']['min_count']
+        )
+        self.word2vec_model.save(os.path.join(PROCESSED_DATA_DIR, 'word2vec_model.bin'))
+        
+        # 计算每个文本的平均词向量
+        vectors = np.zeros((len(tokenized_texts), self.config['word2vec']['vector_size']))
+        for i, tokens in enumerate(tokenized_texts):
+            token_vectors = []
+            for token in tokens:
+                if token in self.word2vec_model.wv:
+                    token_vectors.append(self.word2vec_model.wv[token])
+            if token_vectors:
+                vectors[i] = np.mean(token_vectors, axis=0)
+        return vectors
+        
+    def transform_word2vec(self, tokenized_texts: List[List[str]]) -> np.ndarray:
+        """使用已训练的Word2Vec模型转换文本
+        
+        Args:
+            tokenized_texts: 分词后的文本列表
+            
+        Returns:
+            Word2Vec向量矩阵
+            
+        Raises:
+            VectorizationError: 如果模型未训练
+        """
+        if self.word2vec_model is None:
+            raise VectorizationError("Word2Vec模型未训练")
+            
+        vectors = np.zeros((len(tokenized_texts), self.config['word2vec']['vector_size']))
+        for i, tokens in enumerate(tokenized_texts):
+            token_vectors = []
+            for token in tokens:
+                if token in self.word2vec_model.wv:
+                    token_vectors.append(self.word2vec_model.wv[token])
+            if token_vectors:
+                vectors[i] = np.mean(token_vectors, axis=0)
+        return vectors
+        
+    def fit_char_vectors(self, texts: List[str]) -> sparse.csr_matrix:
+        """训练字符级向量化器并转换文本
+        
+        Args:
+            texts: 文本列表
+            
+        Returns:
+            字符级one-hot编码矩阵
+        """
+        # 构建字符映射
+        chars = set()
+        for text in texts:
+            chars.update(text)
+        self.char_to_id = {char: i for i, char in enumerate(sorted(chars))}
+        self._save_features(
+            list(self.char_to_id.keys()),
+            'char_features.json'
+        )
+        
+        # 转换为one-hot编码
+        rows, cols, data = [], [], []
+        for i, text in enumerate(texts):
+            for char in text:
+                if char in self.char_to_id:
+                    rows.append(i)
+                    cols.append(self.char_to_id[char])
+                    data.append(1)
+        
+        return sparse.csr_matrix(
+            (data, (rows, cols)),
+            shape=(len(texts), len(self.char_to_id))
+        )
+        
+    def transform_char_vectors(self, texts: List[str]) -> sparse.csr_matrix:
+        """使用已训练的字符级向量化器转换文本
+        
+        Args:
+            texts: 文本列表
+            
+        Returns:
+            字符级one-hot编码矩阵
+            
+        Raises:
+            VectorizationError: 如果向量化器未训练
+        """
+        if self.char_to_id is None:
+            raise VectorizationError("字符级向量化器未训练")
+            
+        rows, cols, data = [], [], []
+        for i, text in enumerate(texts):
+            for char in text:
+                if char in self.char_to_id:
+                    rows.append(i)
+                    cols.append(self.char_to_id[char])
+                    data.append(1)
+        
+        return sparse.csr_matrix(
+            (data, (rows, cols)),
+            shape=(len(texts), len(self.char_to_id))
+        )
+        
+    def process_file(self, input_path: str) -> bool:
         """处理单个文件
         
         Args:
             input_path: 输入文件路径
-            output_dir: 输出目录
             
         Returns:
             处理是否成功
@@ -189,59 +215,60 @@ class TfidfVectorizer(BaseVectorizer):
             # 读取数据
             df = pd.read_csv(input_path)
             if 'cleaned_tokens' not in df.columns:
-                logger.error(f"输入文件缺少cleaned_tokens列: {input_path}")
-                return False
+                raise VectorizationError(f"输入文件缺少cleaned_tokens列: {input_path}")
                 
-            # 获取年份
             year = df['year'].iloc[0]
+            texts = df['cleaned_tokens'].tolist()
+            tokenized_texts = [text.split() for text in texts]
             
-            # 向量化
-            vectors = self.transform(df['cleaned_tokens'])
+            # TF-IDF向量化
+            self.logger.info("正在进行TF-IDF向量化...")
+            tfidf_vectors = self.fit_tfidf(texts)
+            sparse.save_npz(
+                os.path.join(PROCESSED_DATA_DIR, f"tfidf_vectors_{year}.npz"),
+                tfidf_vectors
+            )
             
-            # 保存结果
-            self.save_vectors(vectors, year, output_dir)
+            # Word2Vec向量化
+            self.logger.info("正在进行Word2Vec向量化...")
+            word2vec_vectors = self.fit_word2vec(tokenized_texts)
+            np.save(
+                os.path.join(PROCESSED_DATA_DIR, f"word2vec_vectors_{year}.npy"),
+                word2vec_vectors
+            )
+            
+            # 字符级向量化
+            self.logger.info("正在进行字符级向量化...")
+            char_vectors = self.fit_char_vectors(df['title'].tolist())
+            sparse.save_npz(
+                os.path.join(PROCESSED_DATA_DIR, f"char_vectors_{year}.npz"),
+                char_vectors
+            )
             
             return True
             
         except Exception as e:
-            logger.error(f"处理文件时出错: {str(e)}")
-            return False
+            self.logger.error(f"处理文件时出错: {str(e)}")
+            raise
             
-    def process_all(self, input_dir: str, output_dir: str) -> bool:
-        """处理所有文件
+    def process_all(self, input_dir: str = str(PROCESSED_DATA_DIR)) -> bool:
+        """处理目录下的所有文件
         
         Args:
             input_dir: 输入目录
-            output_dir: 输出目录
             
         Returns:
             处理是否成功
         """
         try:
-            # 首先收集所有文本进行训练
-            all_texts = []
-            for filename in os.listdir(input_dir):
-                if filename.startswith('cleaned_titles_') and filename.endswith('.csv'):
-                    df = pd.read_csv(os.path.join(input_dir, filename))
-                    all_texts.extend(df['cleaned_tokens'])
-                    
-            # 训练模型
-            self.fit(all_texts)
-            
-            # 保存模型
-            self.save(output_dir)
-            
-            # 处理每个文件
             success = True
             for filename in os.listdir(input_dir):
                 if filename.startswith('cleaned_titles_') and filename.endswith('.csv'):
                     input_path = os.path.join(input_dir, filename)
-                    logger.info(f"正在处理文件: {filename}")
-                    if not self.process_file(input_path, output_dir):
+                    self.logger.info(f"正在处理文件: {filename}")
+                    if not self.process_file(input_path):
                         success = False
-                        
             return success
-            
         except Exception as e:
-            logger.error(f"批量处理文件时出错: {str(e)}")
-            return False 
+            self.logger.error(f"批量处理文件时出错: {str(e)}")
+            raise 

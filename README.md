@@ -62,20 +62,34 @@ TitleSimilarityClustering/
 - numpy: 数值计算
 - scikit-learn: 机器学习算法
 - matplotlib: 数据可视化
+- gensim: Word2Vec模型
+- scipy: 稀疏矩阵处理
 
 ## 实现步骤
 
 1. **数据爬取**
     - 爬取论文标题数据
 
-3. **数据预处理**
+2. **数据预处理**
    - CSV 文件读取与处理
    - 文本清洗
    - 分词与停用词去除
 
 3. **文本向量化**
-   - 实现多种向量化方法
-   - 向量表示效果对比
+   ```bash
+   # 运行向量化处理
+   python run_vectorization.py
+   ```
+   
+   向量化处理会生成三种类型的向量表示：
+   - TF-IDF向量 (`data/processed/tfidf_vectors_{year}.npz`)
+   - Word2Vec向量 (`data/processed/word2vec_vectors_{year}.npy`)
+   - 字符级向量 (`data/processed/char_vectors_{year}.npz`)
+   
+   同时会生成相应的特征文件：
+   - TF-IDF特征词表 (`data/processed/tfidf_features.json`)
+   - Word2Vec模型 (`data/processed/word2vec_model.bin`)
+   - 字符映射表 (`data/processed/char_features.json`)
 
 4. **相似度计算**
    - 实现余弦相似度算法
@@ -128,7 +142,7 @@ TitleSimilarityClustering/
 
 3. 安装依赖：
    ```bash
-   pip install requests beautifulsoup4 pandas numpy scikit-learn matplotlib python-Levenshtein gensim tqdm
+   pip install -r requirements.txt
    ```
 
 ### 数据获取
@@ -170,7 +184,7 @@ TitleSimilarityClustering/
    ```bash
    python run_preprocessor.py
    ```
-   
+
 预处理步骤说明：
 1. 分词处理
    - 使用 jieba 进行中文分词
@@ -203,3 +217,42 @@ TitleSimilarityClustering/
 3. CSV 文件包含表头，使用逗号分隔
 4. 分词结果中的词语使用单个空格分隔
 5. 所有字段都不允许为空
+
+### 文本向量化
+
+1. 运行向量化脚本：
+   ```bash
+   python run_vectorization.py
+   ```
+
+   向量化处理会对2020-2024年的所有数据进行处理，生成三种不同的向量表示：
+   - TF-IDF向量 (`data/processed/tfidf_vectors_{year}.npz`)
+   - Word2Vec向量 (`data/processed/word2vec_vectors_{year}.npy`)
+   - 字符级向量 (`data/processed/char_vectors_{year}.npz`)
+   
+   同时会生成相应的特征文件：
+   - TF-IDF特征词表 (`data/processed/tfidf_features.json`)
+   - Word2Vec模型 (`data/processed/word2vec_model.bin`)
+   - 字符映射表 (`data/processed/char_features.json`)
+
+   向量化原理：
+   1. TF-IDF向量化
+      - 计算词频(TF)和逆文档频率(IDF)
+      - 使用稀疏矩阵存储高维向量
+      - 通过配置控制特征词数量
+
+   2. Word2Vec向量化
+      - 训练词向量模型捕捉语义关系
+      - 通过平均词向量得到文档向量
+      - 使用密集矩阵存储低维向量
+
+   3. 字符级向量化
+      - 构建字符级的one-hot编码
+      - 保持文本的字符级特征
+      - 使用稀疏矩阵存储高维向量
+
+   注意事项：
+   1. 确保已完成数据预处理步骤
+   2. 检查生成的向量文件大小是否合理
+   3. 验证特征文件的完整性
+   4. 注意内存使用，特别是处理大规模数据时
