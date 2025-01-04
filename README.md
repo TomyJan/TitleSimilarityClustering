@@ -41,7 +41,6 @@ TitleSimilarityClustering/
 │   ├── similarity/         # 相似度计算模块
 │   ├── clustering/         # 聚类分析模块
 │   └── visualization/      # 可视化模块
-├── tests/                  # 测试文件
 ├── results/                # 结果输出
 │   └── visualizations/     # 可视化结果
 └── requirements.txt        # 项目依赖
