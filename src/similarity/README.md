@@ -21,110 +21,119 @@
    - 使用稀疏矩阵格式保存结果
    - 生成详细的元数据文件
 
-## 实现细节
+## 算法实现细节
 
-1. 余弦相似度计算：
-   - 对向量进行L2归一化
-   - 处理零范数情况
-   - Word2Vec相似度额外进行[0,1]区间映射
+1. TF-IDF 余弦相似度：
+   - 使用 scikit-learn 的 TfidfVectorizer 进行向量化
+   - 对向量进行 L2 归一化
+   - 使用余弦相似度计算文本相似性
+   - 相似度范围：[0, 1]
 
-2. 编辑距离相似度计算：
-   - 使用Levenshtein距离
-   - 基于总字符长度的归一化
-   - 相似度值映射到[0,1]区间
+2. Word2Vec 余弦相似度：
+   - 使用 gensim 的 Word2Vec 模型生成词向量
+   - 通过词向量平均值表示文档向量
+   - 使用余弦相似度计算语义相似性
+   - 相似度范围：[-1, 1]，通过变换映射到 [0, 1]
 
-3. 相似度阈值：
-   - 余弦相似度阈值：0.5（范围：[0, 1]）
-   - 编辑距离相似度阈值：0.6（范围：[0, 1]）
+3. 编辑距离相似度：
+   - 使用动态规划实现 Levenshtein 距离计算
+   - 支持插入、删除、替换三种操作
+   - 通过最大长度归一化，将距离转换为相似度
+   - 相似度范围：[0, 1]
 
-## 输入数据
+## 算法比较
 
-模块从 `data/processed` 目录读取以下文件：
+1. TF-IDF 算法：
+   - 优点：
+     - 考虑词频和逆文档频率，能够反映词语的重要性
+     - 计算效率高，适合大规模文本处理
+     - 结果易于解释和理解
+   - 缺点：
+     - 不考虑词序和语义关系
+     - 对于短文本效果可能不够理想
+     - 无法处理同义词和多义词
 
-1. TF-IDF 向量：
-   - 文件格式：`tfidf_vectors_{year}.npz`
-   - 数据类型：scipy.sparse.csr_matrix
+2. Word2Vec 算法：
+   - 优点：
+     - 能够捕捉词语的语义关系
+     - 可以处理同义词
+     - 生成的向量具有良好的语义特性
+   - 缺点：
+     - 需要大量训练数据
+     - 计算资源消耗较大
+     - 结果不如 TF-IDF 直观
 
-2. Word2Vec 向量：
-   - 文件格式：`word2vec_vectors_{year}.npy`
-   - 数据类型：numpy.ndarray
+3. 编辑距离算法：
+   - 优点：
+     - 直接比较字符串差异，结果直观
+     - 不需要预训练或特征提取
+     - 适合检测拼写错误和细微差异
+   - 缺点：
+     - 计算复杂度较高
+     - 不考虑语义信息
+     - 对文本长度敏感
 
-3. 原始标题数据（用于编辑距离计算）：
-   - 文件格式：`cleaned_titles_{year}.csv`
-   - 必需列：`id`, `title`
+## 性能优化
 
-## 输出结果
+1. TF-IDF 优化：
+   - 使用稀疏矩阵存储向量
+   - 批量计算相似度矩阵
+   - 设置最小文档频率过滤低频词
 
-模块将计算结果保存到 `results` 目录：
+2. Word2Vec 优化：
+   - 使用多线程训练模型
+   - 缓存训练好的模型
+   - 向量维度和窗口大小的平衡
 
-1. 相似度矩阵：
-   - 余弦相似度：`cosine_similarity_{method}_{year1}_{year2}.npz`
-   - 编辑距离：`edit_distance_similarity_{year1}_{year2}.npz`
-   - 格式：scipy.sparse.csr_matrix
-
-2. 元数据文件：
-   - 文件名：`similarity_metadata_{year1}_{year2}.json`
-   - 包含内容：
-     - 矩阵形状
-     - 稀疏度
-     - 均值
-     - 标准差
-
-## 配置说明
-
-在 `src/config.py` 中设置相似度计算参数：
-
-```python
-SIMILARITY_CONFIG = {
-    "cosine": {
-        "threshold": 0.5,     # 余弦相似度阈值
-        "batch_size": 1000    # 批处理大小
-    },
-    "edit_distance": {
-        "threshold": 0.6,     # 编辑距离相似度阈值
-        "batch_size": 1000    # 批处理大小
-    }
-}
-```
+3. 编辑距离优化：
+   - 使用动态规划优化计算
+   - 对称矩阵只计算上三角部分
+   - 可选的并行计算支持
 
 ## 使用示例
 
 ```python
-from src.similarity.calculator import SimilarityCalculator
+from src.similarity.calculator import TitleSimilarityCalculator
 
 # 初始化计算器
-calculator = SimilarityCalculator()
+calculator = TitleSimilarityCalculator()
 
-# 计算指定年份之间的相似度
-similarity_matrix, stats = calculator.calculate_similarity(
-    year1=2020,
-    year2=2021,
-    method='tfidf'  # 或 'word2vec', 'edit_distance'
-)
+# 计算单个年份的相似度
+calculator.calculate_similarity(2024, method='tfidf')
+calculator.calculate_similarity(2024, method='word2vec')
+calculator.calculate_similarity(2024, method='edit_distance')
 
 # 批量处理多个年份
 years = [2020, 2021, 2022, 2023, 2024]
-success = calculator.process_years(years)
+calculator.calculate_all(years, output_dir='results')
 ```
+
+## 输出结果
+
+1. 相似度矩阵：
+   - `similarity_tfidf_{year}.npy`：TF-IDF 相似度矩阵
+   - `similarity_word2vec_{year}.npy`：Word2Vec 相似度矩阵
+   - `similarity_edit_distance_{year}.npy`：编辑距离相似度矩阵
+
+2. 统计信息：
+   - 平均相似度
+   - 标准差
+   - 最大/最小相似度
+   - 相似度分布图
 
 ## 注意事项
 
-1. 性能优化：
-   - 使用稀疏矩阵存储
-   - 分批处理大规模数据
+1. 内存使用：
+   - 编辑距离计算可能需要较大内存
+   - 对于大规模数据集建议使用批处理
    - 及时释放不需要的数据
 
-2. 数据要求：
-   - 确保已运行向量化模块
-   - 不同年份的向量维度必须一致
-   - 检查输入数据的完整性
+2. 计算效率：
+   - TF-IDF 计算最快
+   - Word2Vec 需要模型训练时间
+   - 编辑距离计算较慢，但结果直观
 
-3. 存储管理：
-   - 定期清理结果目录
-   - 监控磁盘空间使用
-   - 压缩历史结果文件
-
-4. 配置调整：
-   - 根据数据规模调整批处理大小
-   - 根据需求调整相似度阈值
-   - 优化内存使用配置
+3. 结果解释：
+   - 不同算法的相似度值分布可能差异较大
+   - 需要结合具体应用场景选择合适的算法
+   - 建议使用多种算法互补
