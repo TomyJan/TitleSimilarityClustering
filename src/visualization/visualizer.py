@@ -473,21 +473,23 @@ class TitleVisualizer:
             return False
 
     def _analyze_similarity_distribution(self, years: List[int]) -> Dict:
-        """分析相似度分布
+        """分析相似度分布。"""
+        all_similarities = []
+        for year in years:
+            for method in ['tfidf', 'word2vec']:
+                similarity_matrix = np.load(f'data/similarity/similarity_{method}_{year}.npy')
+                # 获取上三角矩阵的值（不包括对角线）
+                upper_triangle = similarity_matrix[np.triu_indices_from(similarity_matrix, k=1)]
+                all_similarities.extend(upper_triangle)
         
-        Args:
-            years: 要分析的年份列表
-            
-        Returns:
-            Dict: 相似度统计信息
-        """
-        # 这里需要实现具体的相似度分析逻辑
-        return {
-            'mean': 0.5,  # 示例值
-            'max': 0.9,
-            'min': 0.1,
-            'std': 0.2
+        all_similarities = np.array(all_similarities)
+        stats = {
+            'mean': np.mean(all_similarities),
+            'max': np.max(all_similarities),
+            'min': np.min(all_similarities),
+            'std': np.std(all_similarities)
         }
+        return stats
 
     def _analyze_clustering_results(self, years: List[int]) -> Dict:
         """分析聚类结果
@@ -498,15 +500,47 @@ class TitleVisualizer:
         Returns:
             Dict: 聚类统计信息
         """
-        # 这里需要实现具体的聚类分析逻辑
-        return {
-            2020: {
-                'n_clusters': 10,
-                'max_cluster_size': 100,
-                'min_cluster_size': 10,
-                'avg_cluster_size': 50.0
-            }
-        }
+        try:
+            results = {}
+            methods = ['tfidf', 'word2vec']
+            
+            for year in years:
+                year_results = {'n_clusters': 0, 'max_cluster_size': 0, 
+                              'min_cluster_size': float('inf'), 'avg_cluster_size': 0.0}
+                              
+                for method in methods:
+                    try:
+                        # 读取聚类结果
+                        clusters_df = pd.read_csv(os.path.join('results', f'clusters_{method}_{year}.csv'))
+                        cluster_sizes = clusters_df['cluster_id'].value_counts()
+                        
+                        # 更新统计信息
+                        year_results['n_clusters'] = max(year_results['n_clusters'], 
+                                                       len(cluster_sizes))
+                        year_results['max_cluster_size'] = max(year_results['max_cluster_size'], 
+                                                             cluster_sizes.max())
+                        year_results['min_cluster_size'] = min(year_results['min_cluster_size'], 
+                                                             cluster_sizes.min())
+                        year_results['avg_cluster_size'] = max(year_results['avg_cluster_size'], 
+                                                             float(cluster_sizes.mean()))
+                    except Exception as e:
+                        self.logger.warning(f"无法分析{year}年{method}方法的聚类结果: {str(e)}")
+                        continue
+                
+                if year_results['min_cluster_size'] == float('inf'):
+                    year_results['min_cluster_size'] = 0
+                    
+                results[year] = year_results
+                
+            return results
+        except Exception as e:
+            self.logger.error(f"分析聚类结果时出错: {str(e)}")
+            return {year: {
+                'n_clusters': 0,
+                'max_cluster_size': 0,
+                'min_cluster_size': 0,
+                'avg_cluster_size': 0.0
+            } for year in years}
 
     def _analyze_research_trends(self, years: List[int]) -> Dict:
         """分析研究趋势
@@ -517,7 +551,45 @@ class TitleVisualizer:
         Returns:
             Dict: 研究趋势信息
         """
-        # 这里需要实现具体的趋势分析逻辑
-        return {
-            2020: ['人工智能', '深度学习', '大数据']
-        }
+        try:
+            trends = {}
+            methods = ['tfidf', 'word2vec']
+            
+            for year in years:
+                year_topics = set()
+                for method in methods:
+                    try:
+                        # 读取聚类结果
+                        clusters_path = os.path.join('results', f'clusters_{method}_{year}.csv')
+                        if not os.path.exists(clusters_path):
+                            self.logger.warning(f"找不到聚类结果文件: {clusters_path}")
+                            continue
+                            
+                        clusters_df = pd.read_csv(clusters_path)
+                        
+                        # 确保数据框有必要的列
+                        if 'cluster_id' not in clusters_df.columns or 'cleaned_tokens' not in clusters_df.columns:
+                            self.logger.warning(f"{year}年{method}方法的聚类结果缺少必要的列")
+                            continue
+                        
+                        # 获取每个簇的代表性主题
+                        for cluster_id in clusters_df['cluster_id'].unique():
+                            cluster_titles = clusters_df[clusters_df['cluster_id'] == cluster_id]['cleaned_tokens']
+                            if len(cluster_titles) >= 5:  # 只考虑大于等于5个标题的簇
+                                # 使用第一个标题作为主题
+                                year_topics.add(cluster_titles.iloc[0])
+                                
+                    except Exception as e:
+                        self.logger.warning(f"无法分析{year}年{method}方法的研究趋势: {str(e)}")
+                        continue
+                
+                # 如果没有找到任何主题，使用默认值
+                if not year_topics:
+                    year_topics = {'暂无足够数据进行分析'}
+                    
+                trends[year] = list(year_topics)[:10]  # 每年最多保留10个主题
+                
+            return trends
+        except Exception as e:
+            self.logger.error(f"分析研究趋势时出错: {str(e)}")
+            return {year: ['数据不足'] for year in years}
