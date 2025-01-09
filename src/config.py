@@ -35,13 +35,13 @@ PREPROCESSING_CONFIG = {
 VECTORIZATION_CONFIG = {
     "tfidf": {
         "max_features": 5000,
-        "min_df": 2,
+        "min_df": 1,
         "max_df": 0.95
     },
     "word2vec": {
-        "vector_size": 100,
-        "window": 5,
-        "min_count": 2,
+        "vector_size": 200,
+        "window": 8,
+        "min_count": 1,
         "workers": 4
     }
 }
@@ -50,17 +50,17 @@ VECTORIZATION_CONFIG = {
 SIMILARITY_CONFIG = {
     "methods": ["tfidf", "word2vec", "edit_distance"],
     "thresholds": {
-        "cosine": 0.5,  # 降低余弦相似度阈值，以获得更多匹配
-        "edit_distance": 0.6  # 保持编辑距离相似度阈值不变
+        "cosine": 0.3,
+        "edit_distance": 0.4
     },
     "output_format": {
         "cosine": {
             "file_pattern": "cosine_similarity_{method}_{year1}_{year2}.npz",
-            "value_range": [0, 1]  # 保持[0,1]范围
+            "value_range": [0, 1]
         },
         "edit_distance": {
             "file_pattern": "edit_distance_similarity_{year1}_{year2}.npz",
-            "value_range": [0, 1]  # 归一化的编辑距离范围
+            "value_range": [0, 1]
         },
         "metadata": {
             "file_pattern": "similarity_metadata_{year1}_{year2}.json"

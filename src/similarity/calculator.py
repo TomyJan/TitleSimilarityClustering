@@ -159,6 +159,9 @@ class TitleSimilarityCalculator:
                 else:
                     similarity_matrix = 1 - cdist(vectors, vectors, metric='cosine')
                 
+                # 将相似度范围从[-1,1]映射到[0,1]
+                similarity_matrix = (similarity_matrix + 1) / 2
+                
             # 保存结果
             self._save_similarity_matrix(similarity_matrix, year, method)
             
