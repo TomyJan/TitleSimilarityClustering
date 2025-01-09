@@ -106,10 +106,10 @@ TitleSimilarityClustering/
    ```bash
    # 创建虚拟环境
    python -m venv venv
-
+   
    # Windows 激活虚拟环境
    .\venv\Scripts\activate
-
+   
    # Linux/Mac 激活虚拟环境
    source venv/bin/activate
    ```
@@ -248,3 +248,5 @@ python scripts/run_pipeline.py
 ## 许可证
 
 本项目采用 MPL-2.0 许可证，详见 [LICENSE](LICENSE) 文件
+
+本项目代码及文档完全使用 [Cursor](https://www.cursor.com/) 完成, 代码没有任何真人编写成份
